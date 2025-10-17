@@ -4,11 +4,13 @@ import 'package:uuid/uuid.dart';
 import '../models/system.dart';
 import '../models/habit.dart';
 import '../models/goal.dart';
+import '../models/journal_entry.dart';
 import '../data/sample_data.dart';
 
 class DataService {
   static const String _systemsKey = 'systems';
   static const String _goalsKey = 'goals';
+  static const String _journalEntriesKey = 'journal_entries';
   static const String _sampleDataInitializedKey = 'sample_data_initialized';
   static final DataService _instance = DataService._internal();
   factory DataService() => _instance;
@@ -187,5 +189,57 @@ class DataService {
         .toList();
     
     await prefs.setStringList(_goalsKey, goalsJson);
+  }
+
+  // Journal Entry methods
+  Future<List<JournalEntry>> getJournalEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    final entriesJson = prefs.getStringList(_journalEntriesKey) ?? [];
+
+    return entriesJson
+        .map((json) => JournalEntry.fromJson(jsonDecode(json)))
+        .toList();
+  }
+
+  Future<void> addJournalEntry(JournalEntry entry) async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = await getJournalEntries();
+
+    entries.add(entry);
+
+    final entriesJson = entries
+        .map((e) => jsonEncode(e.toJson()))
+        .toList();
+
+    await prefs.setStringList(_journalEntriesKey, entriesJson);
+  }
+
+  Future<void> updateJournalEntry(JournalEntry entry) async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = await getJournalEntries();
+
+    final existingIndex = entries.indexWhere((e) => e.id == entry.id);
+    if (existingIndex >= 0) {
+      entries[existingIndex] = entry;
+    }
+
+    final entriesJson = entries
+        .map((e) => jsonEncode(e.toJson()))
+        .toList();
+
+    await prefs.setStringList(_journalEntriesKey, entriesJson);
+  }
+
+  Future<void> deleteJournalEntry(String entryId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = await getJournalEntries();
+
+    entries.removeWhere((e) => e.id == entryId);
+
+    final entriesJson = entries
+        .map((e) => jsonEncode(e.toJson()))
+        .toList();
+
+    await prefs.setStringList(_journalEntriesKey, entriesJson);
   }
 }

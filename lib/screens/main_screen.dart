@@ -4,6 +4,7 @@ import 'home_screen.dart';
 import 'systems_screen.dart';
 import 'habits_screen.dart';
 import 'goals_screen.dart';
+import 'journal_screen.dart';
 import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _MainScreenState extends State<MainScreen> {
     const SystemsScreen(),     
     const HabitsScreen(),      
     const GoalsScreen(),       
+    const JournalScreen(),     
     const SettingsScreen(),  
   ];
 
@@ -34,14 +36,10 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: CustomBottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          print('Navigation tapped: index=$index, screens.length=${_screens.length}');
           if (index >= 0 && index < _screens.length) {
             setState(() {
               _currentIndex = index;
             });
-            print('Current index set to: $_currentIndex');
-          } else {
-            print('Invalid index: $index');
           }
         },
       ),

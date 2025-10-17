@@ -71,10 +71,19 @@ class CustomBottomNavigationBar extends StatelessWidget {
               Expanded(
                 child: _buildNavItem(
                   context,
+                  icon: Iconsax.document_text,
+                  activeIcon: Iconsax.document_text,
+                  label: 'Journal',
+                  index: 4,
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
+                  context,
                   icon: Iconsax.profile_2user,
                   activeIcon: Iconsax.profile_2user,
                   label: 'Settings',
-                  index: 4,
+                  index: 5,
                 ),
               ),
             ],
@@ -94,10 +103,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
     final isSelected = currentIndex == index;
     
     return GestureDetector(
-      onTap: () {
-        print('GestureDetector tapped for index: $index');
-        onTap(index);
-      },
+      onTap: () => onTap(index),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
