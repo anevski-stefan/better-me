@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   runApp(const BetterMeApp());
@@ -12,11 +13,10 @@ class BetterMeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Better Me',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const HomeScreen(),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      home: const MainScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

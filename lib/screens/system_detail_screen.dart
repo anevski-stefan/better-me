@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax/iconsax.dart';
 import '../models/system.dart';
 import '../models/habit.dart';
 import '../services/data_service.dart';
+import '../services/gamification_service.dart';
 import 'add_habit_screen.dart';
 
 class SystemDetailScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class SystemDetailScreen extends StatefulWidget {
 
 class _SystemDetailScreenState extends State<SystemDetailScreen> {
   final DataService _dataService = DataService();
+  final GamificationService _gamificationService = GamificationService();
   late System _currentSystem;
 
   @override
@@ -25,10 +28,17 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
 
   Future<void> _loadSystem() async {
     final systems = await _dataService.getSystems();
-    final system = systems.firstWhere((s) => s.id == _currentSystem.id);
-    setState(() {
-      _currentSystem = system;
-    });
+    try {
+      final system = systems.firstWhere((s) => s.id == _currentSystem.id);
+      setState(() {
+        _currentSystem = system;
+      });
+    } catch (e) {
+      // System was deleted, navigate back
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    }
   }
 
   Future<void> _toggleHabit(Habit habit) async {
@@ -38,6 +48,12 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
     );
     
     await _dataService.updateHabitInSystem(_currentSystem.id, updatedHabit);
+    
+    // Award XP for completing habit
+    if (updatedHabit.isCompleted) {
+      await _gamificationService.completeHabit();
+    }
+    
     _loadSystem();
   }
 
@@ -64,6 +80,85 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
       await _dataService.deleteHabitFromSystem(_currentSystem.id, habit.id);
       _loadSystem();
     }
+  }
+
+  List<DateTime> _getWeekDays(DateTime habitCreatedAt) {
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    
+    // If habit was created this week, show from creation date
+    if (habitCreatedAt.isAfter(startOfWeek.subtract(const Duration(days: 1)))) {
+      final daysFromCreation = now.difference(habitCreatedAt).inDays;
+      final startDate = daysFromCreation >= 6 ? now.subtract(const Duration(days: 6)) : habitCreatedAt;
+      return List.generate(7, (index) => startDate.add(Duration(days: index)));
+    }
+    
+    // Otherwise show current week
+    return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
+  }
+
+  String _getDayAbbreviation(DateTime date) {
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    return days[date.weekday - 1];
+  }
+
+  bool _isHabitCompletedOnDate(Habit habit, DateTime date) {
+    // For now, we'll use a simple logic based on habit completion
+    // In a real app, you'd store daily completion data
+    if (!habit.isCompleted) return false;
+    
+    // If habit was completed today and the date is today, return true
+    if (habit.completedAt != null && 
+        habit.completedAt!.year == date.year &&
+        habit.completedAt!.month == date.month &&
+        habit.completedAt!.day == date.day) {
+      return true;
+    }
+    
+    // For demo purposes, show some random completion pattern
+    // In a real app, you'd have proper daily tracking
+    return date.weekday % 2 == 0; // Even days of week
+  }
+
+  Widget _buildWeeklyTracker(Habit habit) {
+    final weekDays = _getWeekDays(habit.createdAt);
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: weekDays.map((date) {
+          final isCompleted = _isHabitCompletedOnDate(habit, date);
+          final isToday = date.year == DateTime.now().year &&
+              date.month == DateTime.now().month &&
+              date.day == DateTime.now().day;
+          
+          return Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isCompleted 
+                  ? Colors.green 
+                  : Colors.red.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(6),
+              border: isToday 
+                  ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                  : null,
+            ),
+            child: Center(
+              child: Text(
+                _getDayAbbreviation(date),
+                style: TextStyle(
+                  color: isCompleted ? Colors.white : Colors.red,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 
   @override
@@ -97,7 +192,7 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
               if (confirmed == true) {
                 await _dataService.deleteSystem(_currentSystem.id);
                 if (mounted) {
-                  Navigator.pop(context);
+                  Navigator.pop(context, true); // Pass true to indicate deletion
                 }
               }
             },
@@ -163,25 +258,56 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                     itemBuilder: (context, index) {
                       final habit = _currentSystem.habits[index];
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: CheckboxListTile(
-                          title: Text(
-                            habit.name,
-                            style: TextStyle(
-                              decoration: habit.isCompleted 
-                                  ? TextDecoration.lineThrough 
-                                  : null,
-                              color: habit.isCompleted 
-                                  ? Colors.grey 
-                                  : null,
-                            ),
-                          ),
-                          subtitle: Text(habit.description),
-                          value: habit.isCompleted,
-                          onChanged: (value) => _toggleHabit(habit),
-                          secondary: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteHabit(habit),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          habit.name,
+                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            decoration: habit.isCompleted 
+                                                ? TextDecoration.lineThrough 
+                                                : null,
+                                            color: habit.isCompleted 
+                                                ? Colors.grey 
+                                                : null,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          habit.description,
+                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            color: Theme.of(context).textTheme.bodySmall?.color,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Checkbox(
+                                        value: habit.isCompleted,
+                                        onChanged: (value) => _toggleHabit(habit),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Iconsax.trash, color: Colors.red, size: 20),
+                                        onPressed: () => _deleteHabit(habit),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              _buildWeeklyTracker(habit),
+                            ],
                           ),
                         ),
                       );
