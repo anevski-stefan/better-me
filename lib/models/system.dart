@@ -5,6 +5,7 @@ class System {
   final String name;
   final String description;
   final String category;
+  final String? goalId;
   final DateTime createdAt;
   final List<Habit> habits;
 
@@ -13,6 +14,7 @@ class System {
     required this.name,
     required this.description,
     required this.category,
+    this.goalId,
     required this.createdAt,
     this.habits = const [],
   });
@@ -22,6 +24,7 @@ class System {
     String? name,
     String? description,
     String? category,
+    String? goalId,
     DateTime? createdAt,
     List<Habit>? habits,
   }) {
@@ -30,6 +33,7 @@ class System {
       name: name ?? this.name,
       description: description ?? this.description,
       category: category ?? this.category,
+      goalId: goalId,
       createdAt: createdAt ?? this.createdAt,
       habits: habits ?? this.habits,
     );
@@ -41,6 +45,7 @@ class System {
       'name': name,
       'description': description,
       'category': category,
+      'goalId': goalId,
       'createdAt': createdAt.toIso8601String(),
       'habits': habits.map((habit) => habit.toJson()).toList(),
     };
@@ -52,6 +57,7 @@ class System {
       name: json['name'],
       description: json['description'],
       category: json['category'] ?? 'General',
+      goalId: json['goalId'],
       createdAt: DateTime.parse(json['createdAt']),
       habits: (json['habits'] as List<dynamic>?)
           ?.map((habitJson) => Habit.fromJson(habitJson))

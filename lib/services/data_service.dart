@@ -3,10 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/system.dart';
 import '../models/habit.dart';
+import '../models/goal.dart';
 import '../data/sample_data.dart';
 
 class DataService {
   static const String _systemsKey = 'systems';
+  static const String _goalsKey = 'goals';
   static const String _sampleDataInitializedKey = 'sample_data_initialized';
   static final DataService _instance = DataService._internal();
   factory DataService() => _instance;
@@ -133,5 +135,57 @@ class DataService {
     await prefs.setBool(_sampleDataInitializedKey, false);
     await _initializeSampleData();
     await prefs.setBool(_sampleDataInitializedKey, true);
+  }
+
+  // Goal-related methods
+  Future<List<Goal>> getGoals() async {
+    final prefs = await SharedPreferences.getInstance();
+    final goalsJson = prefs.getStringList(_goalsKey) ?? [];
+    
+    return goalsJson
+        .map((json) => Goal.fromJson(jsonDecode(json)))
+        .toList();
+  }
+
+  Future<void> addGoal(Goal goal) async {
+    final prefs = await SharedPreferences.getInstance();
+    final goals = await getGoals();
+    
+    goals.add(goal);
+    
+    final goalsJson = goals
+        .map((g) => jsonEncode(g.toJson()))
+        .toList();
+    
+    await prefs.setStringList(_goalsKey, goalsJson);
+  }
+
+  Future<void> updateGoal(Goal goal) async {
+    final prefs = await SharedPreferences.getInstance();
+    final goals = await getGoals();
+    
+    final existingIndex = goals.indexWhere((g) => g.id == goal.id);
+    if (existingIndex >= 0) {
+      goals[existingIndex] = goal;
+    }
+    
+    final goalsJson = goals
+        .map((g) => jsonEncode(g.toJson()))
+        .toList();
+    
+    await prefs.setStringList(_goalsKey, goalsJson);
+  }
+
+  Future<void> deleteGoal(String goalId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final goals = await getGoals();
+    
+    goals.removeWhere((g) => g.id == goalId);
+    
+    final goalsJson = goals
+        .map((g) => jsonEncode(g.toJson()))
+        .toList();
+    
+    await prefs.setStringList(_goalsKey, goalsJson);
   }
 }

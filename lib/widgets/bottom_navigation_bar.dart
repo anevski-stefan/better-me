@@ -28,7 +28,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
         top: false,
         child: Container(
           height: 70,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -46,7 +46,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
                   context,
                   icon: Iconsax.chart_2,
                   activeIcon: Iconsax.chart_2,
-                  label: 'Progress',
+                  label: 'Systems',
                   index: 1,
                 ),
               ),
@@ -62,10 +62,19 @@ class CustomBottomNavigationBar extends StatelessWidget {
               Expanded(
                 child: _buildNavItem(
                   context,
+                  icon: Iconsax.flag,
+                  activeIcon: Iconsax.flag,
+                  label: 'Goals',
+                  index: 3,
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
+                  context,
                   icon: Iconsax.profile_2user,
                   activeIcon: Iconsax.profile_2user,
                   label: 'Settings',
-                  index: 3,
+                  index: 4,
                 ),
               ),
             ],
@@ -85,10 +94,13 @@ class CustomBottomNavigationBar extends StatelessWidget {
     final isSelected = currentIndex == index;
     
     return GestureDetector(
-      onTap: () => onTap(index),
+      onTap: () {
+        print('GestureDetector tapped for index: $index');
+        onTap(index);
+      },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected 
               ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
@@ -105,7 +117,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
               color: isSelected 
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).textTheme.bodySmall?.color,
-              size: 24,
+              size: 22,
             ),
             const SizedBox(height: 2),
             Text(
@@ -114,10 +126,12 @@ class CustomBottomNavigationBar extends StatelessWidget {
                 color: isSelected 
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).textTheme.bodySmall?.color,
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

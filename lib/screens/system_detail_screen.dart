@@ -42,15 +42,74 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
   }
 
   Future<void> _toggleHabit(Habit habit) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    List<DateTime> newCompletedDates = List.from(habit.completedDates ?? []);
+    
+    if (habit.isCompleted) {
+      // If habit is currently completed, remove today from completedDates
+      newCompletedDates.removeWhere((completedDate) =>
+          completedDate.year == today.year &&
+          completedDate.month == today.month &&
+          completedDate.day == today.day);
+    } else {
+      // If habit is not completed, add today to completedDates
+      newCompletedDates.add(today);
+    }
+    
     final updatedHabit = habit.copyWith(
       isCompleted: !habit.isCompleted,
-      completedAt: !habit.isCompleted ? DateTime.now() : null,
+      completedAt: !habit.isCompleted ? now : null,
+      completedDates: newCompletedDates,
     );
     
     await _dataService.updateHabitInSystem(_currentSystem.id, updatedHabit);
     
     // Award XP for completing habit
     if (updatedHabit.isCompleted) {
+      await _gamificationService.completeHabit();
+    }
+    
+    _loadSystem();
+  }
+
+  Future<void> _toggleHabitForDate(Habit habit, DateTime date) async {
+    print('Toggling habit ${habit.name} for date ${date.day}/${date.month}');
+    
+    // Create a date with only year, month, day (no time)
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    
+    List<DateTime> newCompletedDates = List.from(habit.completedDates ?? []);
+    
+    // Check if this date is already completed
+    final isAlreadyCompleted = newCompletedDates.any((completedDate) =>
+        completedDate.year == date.year &&
+        completedDate.month == date.month &&
+        completedDate.day == date.day);
+    
+    if (isAlreadyCompleted) {
+      // Remove this date from completed dates
+      newCompletedDates.removeWhere((completedDate) =>
+          completedDate.year == date.year &&
+          completedDate.month == date.month &&
+          completedDate.day == date.day);
+    } else {
+      // Add this date to completed dates
+      newCompletedDates.add(dateOnly);
+    }
+    
+    // Update the habit with new completed dates
+    final updatedHabit = habit.copyWith(
+      completedDates: newCompletedDates,
+      isCompleted: newCompletedDates.isNotEmpty,
+      completedAt: newCompletedDates.isNotEmpty ? newCompletedDates.last : null,
+    );
+    
+    await _dataService.updateHabitInSystem(_currentSystem.id, updatedHabit);
+    
+    // Award XP for completing habit (only if it's a new completion)
+    if (!isAlreadyCompleted && newCompletedDates.isNotEmpty) {
       await _gamificationService.completeHabit();
     }
     
@@ -103,21 +162,16 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
   }
 
   bool _isHabitCompletedOnDate(Habit habit, DateTime date) {
-    // For now, we'll use a simple logic based on habit completion
-    // In a real app, you'd store daily completion data
-    if (!habit.isCompleted) return false;
-    
-    // If habit was completed today and the date is today, return true
-    if (habit.completedAt != null && 
-        habit.completedAt!.year == date.year &&
-        habit.completedAt!.month == date.month &&
-        habit.completedAt!.day == date.day) {
-      return true;
+    // Check if this specific date is in the completedDates list
+    // Handle null safety for existing habits
+    if (habit.completedDates == null || habit.completedDates!.isEmpty) {
+      return false;
     }
     
-    // For demo purposes, show some random completion pattern
-    // In a real app, you'd have proper daily tracking
-    return date.weekday % 2 == 0; // Even days of week
+    return habit.completedDates!.any((completedDate) =>
+        completedDate.year == date.year &&
+        completedDate.month == date.month &&
+        completedDate.day == date.day);
   }
 
   Widget _buildWeeklyTracker(Habit habit) {
@@ -133,25 +187,32 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
               date.month == DateTime.now().month &&
               date.day == DateTime.now().day;
           
-          return Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isCompleted 
-                  ? Colors.green 
-                  : Colors.red.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(6),
-              border: isToday 
-                  ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                  : null,
-            ),
-            child: Center(
-              child: Text(
-                _getDayAbbreviation(date),
-                style: TextStyle(
-                  color: isCompleted ? Colors.white : Colors.red,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+          return GestureDetector(
+            key: ValueKey('day_${date.day}_${date.month}'),
+            onTap: () {
+              print('Day ${_getDayAbbreviation(date)} clicked for habit ${habit.name}');
+              _toggleHabitForDate(habit, date);
+            },
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isCompleted 
+                    ? Colors.green 
+                    : Colors.red.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(6),
+                border: isToday 
+                    ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                    : null,
+              ),
+              child: Center(
+                child: Text(
+                  _getDayAbbreviation(date),
+                  style: TextStyle(
+                    color: isCompleted ? Colors.white : Colors.red,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),

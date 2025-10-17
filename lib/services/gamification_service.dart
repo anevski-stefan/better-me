@@ -110,6 +110,40 @@ class GamificationService {
     await _saveProfile();
   }
 
+  Future<void> createGoal() async {
+    final profile = await getProfile();
+    final newXp = profile.experiencePoints + 25; // Creating goals gives XP
+    final newLevel = _calculateLevel(newXp);
+
+    final newAchievements = await _checkAchievements(profile, profile.totalHabitsCompleted, newLevel);
+
+    _currentProfile = profile.copyWith(
+      experiencePoints: newXp,
+      level: newLevel,
+      unlockedAchievements: newAchievements,
+      lastUpdated: DateTime.now(),
+    );
+
+    await _saveProfile();
+  }
+
+  Future<void> completeGoal() async {
+    final profile = await getProfile();
+    final newXp = profile.experiencePoints + 100; // Goals give more XP
+    final newLevel = _calculateLevel(newXp);
+
+    final newAchievements = await _checkAchievements(profile, profile.totalHabitsCompleted, newLevel);
+
+    _currentProfile = profile.copyWith(
+      experiencePoints: newXp,
+      level: newLevel,
+      unlockedAchievements: newAchievements,
+      lastUpdated: DateTime.now(),
+    );
+
+    await _saveProfile();
+  }
+
   int _calculateLevel(int xp) {
     return (xp ~/ 100) + 1;
   }

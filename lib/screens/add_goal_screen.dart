@@ -1,46 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
-import '../models/system.dart';
 import '../models/goal.dart';
 import '../services/data_service.dart';
 import '../services/gamification_service.dart';
 
-class AddSystemScreen extends StatefulWidget {
-  const AddSystemScreen({super.key});
+class AddGoalScreen extends StatefulWidget {
+  const AddGoalScreen({super.key});
 
   @override
-  State<AddSystemScreen> createState() => _AddSystemScreenState();
+  State<AddGoalScreen> createState() => _AddGoalScreenState();
 }
 
-class _AddSystemScreenState extends State<AddSystemScreen> {
+class _AddGoalScreenState extends State<AddGoalScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController(text: 'e.g., Morning Routine, Health & Fitness');
-  final _descriptionController = TextEditingController(text: 'Describe what this system is for and your goals');
+  final _nameController = TextEditingController(text: 'e.g., Run a Marathon, Learn Spanish');
+  final _descriptionController = TextEditingController(text: 'Describe your goal and why it matters to you');
   final DataService _dataService = DataService();
   final GamificationService _gamificationService = GamificationService();
   bool _isLoading = false;
-  String _selectedCategory = 'Health & Fitness';
-  String? _selectedGoalId;
-  List<Goal> _goals = [];
-
-  final List<String> _categories = [
-    'Health & Fitness',
-    'Productivity',
-    'Learning',
-    'Mindfulness',
-    'Relationships',
-    'Career',
-    'Finance',
-    'Hobbies',
-    'Home & Organization',
-    'Other'
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadGoals();
-  }
+  
+  DateTime? _selectedTargetDate;
+  bool _hasTargetDate = false;
 
   @override
   void dispose() {
@@ -49,14 +29,22 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
     super.dispose();
   }
 
-  Future<void> _loadGoals() async {
-    final goals = await _dataService.getGoals();
-    setState(() {
-      _goals = goals;
-    });
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedTargetDate ?? DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)), // 5 years from now
+    );
+    
+    if (picked != null && picked != _selectedTargetDate) {
+      setState(() {
+        _selectedTargetDate = picked;
+      });
+    }
   }
 
-  Future<void> _saveSystem() async {
+  Future<void> _saveGoal() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -64,19 +52,18 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
     });
 
     try {
-      final system = System(
+      final goal = Goal(
         id: _dataService.generateId(),
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
-        category: _selectedCategory,
-        goalId: _selectedGoalId,
         createdAt: DateTime.now(),
+        targetDate: _hasTargetDate ? _selectedTargetDate : null,
       );
 
-      await _dataService.saveSystem(system);
+      await _dataService.addGoal(goal);
       
-      // Award XP for creating system
-      await _gamificationService.createSystem();
+      // Award XP for creating goal
+      await _gamificationService.createGoal();
 
       if (mounted) {
         Navigator.pop(context);
@@ -137,7 +124,7 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                           const SizedBox(width: 12),
                           const Expanded(
                             child: Text(
-                              'System created successfully!',
+                              'Goal created successfully!',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -170,7 +157,7 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating system: $e'),
+            content: Text('Error creating goal: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -190,7 +177,7 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Create System',
+          'Create Goal',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -214,7 +201,7 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -222,11 +209,11 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
+                          color: Theme.of(context).colorScheme.secondary,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: const Icon(
-                          Iconsax.add_square,
+                          Iconsax.flag,
                           color: Colors.white,
                           size: 24,
                         ),
@@ -237,14 +224,14 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Create New System',
+                              'Create New Goal',
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Organize your habits into focused systems',
+                              'Set a meaningful goal to work towards',
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: Theme.of(context).textTheme.bodySmall?.color,
                               ),
@@ -260,14 +247,14 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
 
                 // Form Fields
                 Text(
-                  'System Details',
+                  'Goal Details',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 16),
 
-                // System Name Field
+                // Goal Name Field
                 Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
@@ -286,7 +273,7 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                   child: TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      labelText: 'System Name',
+                      labelText: 'Goal Name',
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.all(20),
                       labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -294,123 +281,21 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                       ),
                     ),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: _nameController.text == 'e.g., Morning Routine, Health & Fitness'
+                      color: _nameController.text == 'e.g., Run a Marathon, Learn Spanish'
                           ? Theme.of(context).textTheme.bodySmall?.color
                           : Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                     onTap: () {
-                      if (_nameController.text == 'e.g., Morning Routine, Health & Fitness') {
+                      if (_nameController.text == 'e.g., Run a Marathon, Learn Spanish') {
                         _nameController.clear();
                         setState(() {});
                       }
                     },
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty || value == 'e.g., Morning Routine, Health & Fitness') {
-                        return 'Please enter a system name';
+                      if (value == null || value.trim().isEmpty || value == 'e.g., Run a Marathon, Learn Spanish') {
+                        return 'Please enter a goal name';
                       }
                       return null;
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Category Field
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor.withOpacity(0.1),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedCategory,
-                    decoration: InputDecoration(
-                      labelText: 'Category',
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(20),
-                      labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    items: _categories.map((String category) {
-                      return DropdownMenuItem<String>(
-                        value: category,
-                        child: Text(
-                          category,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedCategory = newValue!;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please select a category';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Goal Selection Field
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor.withOpacity(0.1),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: DropdownButtonFormField<String?>(
-                    value: _selectedGoalId,
-                    decoration: InputDecoration(
-                      labelText: 'Connected Goal (Optional)',
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(20),
-                      labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('No Goal Selected'),
-                      ),
-                      ..._goals.map((Goal goal) {
-                        return DropdownMenuItem<String?>(
-                          value: goal.id,
-                          child: Text(
-                            goal.name,
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedGoalId = newValue;
-                      });
                     },
                   ),
                 ),
@@ -444,23 +329,132 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                       ),
                     ),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: _descriptionController.text == 'Describe what this system is for and your goals'
+                      color: _descriptionController.text == 'Describe your goal and why it matters to you'
                           ? Theme.of(context).textTheme.bodySmall?.color
                           : Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                     maxLines: 4,
                     onTap: () {
-                      if (_descriptionController.text == 'Describe what this system is for and your goals') {
+                      if (_descriptionController.text == 'Describe your goal and why it matters to you') {
                         _descriptionController.clear();
                         setState(() {});
                       }
                     },
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty || value == 'Describe what this system is for and your goals') {
+                      if (value == null || value.trim().isEmpty || value == 'Describe your goal and why it matters to you') {
                         return 'Please enter a description';
                       }
                       return null;
                     },
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Target Date Section
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(context).dividerColor.withOpacity(0.1),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Iconsax.calendar_1,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Target Date',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Target Date Toggle
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Set a target date',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        subtitle: Text(_hasTargetDate 
+                            ? 'Target: ${_formatDate(_selectedTargetDate!)}'
+                            : 'No target date set'),
+                        value: _hasTargetDate,
+                        onChanged: (value) {
+                          setState(() {
+                            _hasTargetDate = value;
+                            if (!value) {
+                              _selectedTargetDate = null;
+                            }
+                          });
+                        },
+                        activeColor: Theme.of(context).colorScheme.primary,
+                      ),
+                      
+                      if (_hasTargetDate) ...[
+                        const SizedBox(height: 16),
+                        
+                        // Date Selection
+                        InkWell(
+                          onTap: _selectDate,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Theme.of(context).dividerColor.withOpacity(0.3),
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Iconsax.calendar_1,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  _selectedTargetDate != null
+                                      ? _formatDate(_selectedTargetDate!)
+                                      : 'Select target date',
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: _selectedTargetDate != null
+                                        ? Theme.of(context).textTheme.bodyLarge?.color
+                                        : Theme.of(context).textTheme.bodySmall?.color,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Icon(
+                                  Iconsax.arrow_down_1,
+                                  color: Theme.of(context).textTheme.bodySmall?.color,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
 
@@ -470,9 +464,9 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveSystem,
+                    onPressed: _isLoading ? null : _saveGoal,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 20),
                       shape: RoundedRectangleBorder(
@@ -492,10 +486,10 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Iconsax.add_square, size: 20),
+                              const Icon(Iconsax.flag, size: 20),
                               const SizedBox(width: 8),
                               Text(
-                                'Create System',
+                                'Create Goal',
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
@@ -511,5 +505,9 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class Habit {
   final String id;
   final String name;
@@ -6,6 +8,10 @@ class Habit {
   final bool isCompleted;
   final DateTime createdAt;
   final DateTime? completedAt;
+  final bool hasReminder;
+  final TimeOfDay? reminderTime;
+  final List<int> reminderDays; // 0=Sunday, 1=Monday, etc.
+  final List<DateTime>? completedDates; // Track individual day completions
 
   Habit({
     required this.id,
@@ -15,6 +21,10 @@ class Habit {
     this.isCompleted = false,
     required this.createdAt,
     this.completedAt,
+    this.hasReminder = false,
+    this.reminderTime,
+    this.reminderDays = const [],
+    this.completedDates,
   });
 
   Habit copyWith({
@@ -25,6 +35,10 @@ class Habit {
     bool? isCompleted,
     DateTime? createdAt,
     DateTime? completedAt,
+    bool? hasReminder,
+    TimeOfDay? reminderTime,
+    List<int>? reminderDays,
+    List<DateTime>? completedDates,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -33,7 +47,11 @@ class Habit {
       systemId: systemId ?? this.systemId,
       isCompleted: isCompleted ?? this.isCompleted,
       createdAt: createdAt ?? this.createdAt,
-      completedAt: completedAt ?? this.completedAt,
+      completedAt: completedAt,
+      hasReminder: hasReminder ?? this.hasReminder,
+      reminderTime: reminderTime ?? this.reminderTime,
+      reminderDays: reminderDays ?? this.reminderDays,
+      completedDates: completedDates ?? this.completedDates,
     );
   }
 
@@ -46,10 +64,25 @@ class Habit {
       'isCompleted': isCompleted,
       'createdAt': createdAt.toIso8601String(),
       'completedAt': completedAt?.toIso8601String(),
+      'hasReminder': hasReminder,
+      'reminderTime': reminderTime != null 
+          ? '${reminderTime!.hour}:${reminderTime!.minute.toString().padLeft(2, '0')}'
+          : null,
+      'reminderDays': reminderDays,
+      'completedDates': completedDates?.map((date) => date.toIso8601String()).toList(),
     };
   }
 
   factory Habit.fromJson(Map<String, dynamic> json) {
+    TimeOfDay? parseTime(String? timeString) {
+      if (timeString == null) return null;
+      final parts = timeString.split(':');
+      return TimeOfDay(
+        hour: int.parse(parts[0]),
+        minute: int.parse(parts[1]),
+      );
+    }
+
     return Habit(
       id: json['id'],
       name: json['name'],
@@ -59,6 +92,12 @@ class Habit {
       createdAt: DateTime.parse(json['createdAt']),
       completedAt: json['completedAt'] != null 
           ? DateTime.parse(json['completedAt']) 
+          : null,
+      hasReminder: json['hasReminder'] ?? false,
+      reminderTime: parseTime(json['reminderTime']),
+      reminderDays: (json['reminderDays'] as List<dynamic>?)?.cast<int>() ?? [],
+      completedDates: json['completedDates'] != null 
+          ? (json['completedDates'] as List<dynamic>).map((date) => DateTime.parse(date)).toList()
           : null,
     );
   }
