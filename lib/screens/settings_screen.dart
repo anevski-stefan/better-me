@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import '../services/data_service.dart';
 import '../services/gamification_service.dart';
+import '../services/export_service.dart';
+import '../services/import_service.dart';
 import '../models/user_profile.dart';
 import 'achievements_screen.dart';
 
@@ -15,11 +17,15 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final DataService _dataService = DataService();
   final GamificationService _gamificationService = GamificationService();
+  late final ExportService _exportService;
+  late final ImportService _importService;
   UserProfile? _userProfile;
 
   @override
   void initState() {
     super.initState();
+    _exportService = ExportService(dataService: _dataService);
+    _importService = ImportService(dataService: _dataService, exportService: _exportService);
     _loadUserProfile();
   }
 
@@ -90,6 +96,215 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('All data cleared'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportData() async {
+    final navigator = Navigator.of(context);
+    try {
+      // Show export options dialog
+      final exportOption = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Export Data'),
+          content: const Text('Choose how to export your data:'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'choose_location'),
+              child: const Text('Choose Save Location'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'default_location'),
+              child: const Text('Save to Default Location'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+
+      if (exportOption == null) return;
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      String? filePath;
+      if (exportOption == 'choose_location') {
+        filePath = await _exportService.exportDataWithDestination();
+      } else {
+        filePath = await _exportService.exportData();
+      }
+      
+      if (mounted) {
+        navigator.pop(); // Close loading dialog
+        
+        if (filePath != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Data exported successfully to: $filePath'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Export cancelled or failed'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        navigator.pop(); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _importData() async {
+    try {
+      // Show import options dialog
+      final importOption = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Import Data'),
+          content: const Text('Choose how to import the data:'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'merge'),
+              child: const Text('Merge with existing data'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'replace'),
+              child: const Text('Replace all data'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+
+      if (importOption == null) return;
+
+      // Show loading dialog
+      final navigator = Navigator.of(context);
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      ImportResult result;
+      if (importOption == 'replace') {
+        result = await _importService.importDataWithReplace();
+      } else {
+        result = await _importService.importDataWithMerge();
+      }
+
+      if (mounted) {
+        navigator.pop(); // Close loading dialog
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: result.success ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+
+        if (result.success) {
+          // Refresh user profile after successful import
+          await _loadUserProfile();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _validateImportFile() async {
+    final navigator = Navigator.of(context);
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final validationResult = await _importService.validateImportFile();
+
+      if (mounted) {
+        navigator.pop(); // Close loading dialog
+        
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(validationResult.isValid ? 'File Valid' : 'Invalid File'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(validationResult.message),
+                if (validationResult.isValid) ...[
+                  const SizedBox(height: 16),
+                  Text('Systems: ${validationResult.systemsCount ?? 0}'),
+                  Text('Goals: ${validationResult.goalsCount ?? 0}'),
+                  Text('Journal Entries: ${validationResult.journalEntriesCount ?? 0}'),
+                  Text('Habits: ${validationResult.habitsCount ?? 0}'),
+                  if (validationResult.exportDate != null)
+                    Text('Export Date: ${validationResult.exportDate}'),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        navigator.pop(); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Validation failed: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -341,6 +556,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Column(
                 children: [
+                  // Export Data
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Iconsax.export_1,
+                        color: Colors.green,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text('Export Data'),
+                    subtitle: const Text('Save all your data to a file (choose location)'),
+                    onTap: _exportData,
+                  ),
+                  const Divider(height: 1),
+                  // Import Data
                   ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
@@ -349,8 +584,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
-                        Iconsax.refresh,
+                        Iconsax.import_1,
                         color: Colors.blue,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text('Import Data'),
+                    subtitle: const Text('Load data from a backup file'),
+                    onTap: _importData,
+                  ),
+                  const Divider(height: 1),
+                  // Validate Import File
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Iconsax.document_text,
+                        color: Colors.orange,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text('Validate Import File'),
+                    subtitle: const Text('Check if a file is valid before importing'),
+                    onTap: _validateImportFile,
+                  ),
+                  const Divider(height: 1),
+                  // Reset to Sample Data
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Iconsax.refresh,
+                        color: Colors.purple,
                         size: 20,
                       ),
                     ),
@@ -359,6 +632,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: _resetToSampleData,
                   ),
                   const Divider(height: 1),
+                  // Clear All Data
                   ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),

@@ -5,9 +5,7 @@ import '../models/achievement.dart';
 
 class GamificationService {
   static const String _profileKey = 'user_profile';
-  static final GamificationService _instance = GamificationService._internal();
-  factory GamificationService() => _instance;
-  GamificationService._internal();
+  GamificationService();
 
   UserProfile? _currentProfile;
 

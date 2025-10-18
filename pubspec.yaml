@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.2
   uuid: ^4.2.1
+  file_picker: ^8.0.0+1
+  path_provider: ^2.1.2
   
   # Professional UI Libraries
   velocity_x: ^4.0.0

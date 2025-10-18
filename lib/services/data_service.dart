@@ -12,9 +12,7 @@ class DataService {
   static const String _goalsKey = 'goals';
   static const String _journalEntriesKey = 'journal_entries';
   static const String _sampleDataInitializedKey = 'sample_data_initialized';
-  static final DataService _instance = DataService._internal();
-  factory DataService() => _instance;
-  DataService._internal();
+  DataService();
 
   final Uuid _uuid = const Uuid();
 
