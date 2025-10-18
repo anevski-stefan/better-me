@@ -20,8 +20,7 @@ class BetterMeApp extends StatelessWidget {
     return MaterialApp(
       title: 'Better Me',
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       home: const MainScreen(),
       debugShowCheckedModeBanner: false,
     );
