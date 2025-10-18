@@ -20,51 +20,51 @@ class AppTheme {
         seedColor: primaryColor,
         brightness: Brightness.light,
       ),
-      fontFamily: GoogleFonts.poppins().fontFamily,
+      fontFamily: GoogleFonts.manrope().fontFamily,
       scaffoldBackgroundColor: surfaceColor,
       cardColor: cardColor,
-      textTheme: GoogleFonts.poppinsTextTheme().copyWith(
-        headlineLarge: GoogleFonts.poppins(
+      textTheme: GoogleFonts.manropeTextTheme().copyWith(
+        headlineLarge: GoogleFonts.manrope(
           fontSize: 32,
+          fontWeight: FontWeight.w800,
+          color: textPrimary,
+        ),
+        headlineMedium: GoogleFonts.manrope(
+          fontSize: 28,
           fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
-        headlineMedium: GoogleFonts.poppins(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
-        headlineSmall: GoogleFonts.poppins(
+        headlineSmall: GoogleFonts.manrope(
           fontSize: 24,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
-        titleLarge: GoogleFonts.poppins(
+        titleLarge: GoogleFonts.manrope(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        titleMedium: GoogleFonts.poppins(
+        titleMedium: GoogleFonts.manrope(
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
-        titleSmall: GoogleFonts.poppins(
+        titleSmall: GoogleFonts.manrope(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
-        bodyLarge: GoogleFonts.poppins(
+        bodyLarge: GoogleFonts.manrope(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: textPrimary,
         ),
-        bodyMedium: GoogleFonts.poppins(
+        bodyMedium: GoogleFonts.manrope(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: textPrimary,
         ),
-        bodySmall: GoogleFonts.poppins(
+        bodySmall: GoogleFonts.manrope(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: textSecondary,
@@ -80,51 +80,51 @@ class AppTheme {
         seedColor: primaryColor,
         brightness: Brightness.dark,
       ),
-      fontFamily: GoogleFonts.poppins().fontFamily,
+      fontFamily: GoogleFonts.manrope().fontFamily,
       scaffoldBackgroundColor: const Color(0xFF0F172A),
       cardColor: const Color(0xFF1E293B),
-      textTheme: GoogleFonts.poppinsTextTheme().copyWith(
-        headlineLarge: GoogleFonts.poppins(
+      textTheme: GoogleFonts.manropeTextTheme().copyWith(
+        headlineLarge: GoogleFonts.manrope(
           fontSize: 32,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+        ),
+        headlineMedium: GoogleFonts.manrope(
+          fontSize: 28,
           fontWeight: FontWeight.w700,
           color: Colors.white,
         ),
-        headlineMedium: GoogleFonts.poppins(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-        headlineSmall: GoogleFonts.poppins(
+        headlineSmall: GoogleFonts.manrope(
           fontSize: 24,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: Colors.white,
         ),
-        titleLarge: GoogleFonts.poppins(
+        titleLarge: GoogleFonts.manrope(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: Colors.white,
         ),
-        titleMedium: GoogleFonts.poppins(
+        titleMedium: GoogleFonts.manrope(
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: Colors.white,
         ),
-        titleSmall: GoogleFonts.poppins(
+        titleSmall: GoogleFonts.manrope(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: Colors.white,
         ),
-        bodyLarge: GoogleFonts.poppins(
+        bodyLarge: GoogleFonts.manrope(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: Colors.white,
         ),
-        bodyMedium: GoogleFonts.poppins(
+        bodyMedium: GoogleFonts.manrope(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: Colors.white,
         ),
-        bodySmall: GoogleFonts.poppins(
+        bodySmall: GoogleFonts.manrope(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: const Color(0xFF94A3B8),

@@ -522,7 +522,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AchievementsScreen(),
+                      builder: (context) => const AchievementsScreen(key: ValueKey('achievements')),
                     ),
                   );
                 },

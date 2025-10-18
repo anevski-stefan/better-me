@@ -19,13 +19,13 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const HomeScreen(),        
-    const SystemsScreen(),     
-    const HabitsScreen(),      
-    const GoalsScreen(),       
-    const JournalScreen(),     
-    const SettingsScreen(),
-    const FocusModeScreen(),   // Index 6
+    const HomeScreen(key: ValueKey('home')),        
+    const SystemsScreen(key: ValueKey('systems')),     
+    const HabitsScreen(key: ValueKey('habits')),      
+    const GoalsScreen(key: ValueKey('goals')),       
+    const JournalScreen(key: ValueKey('journal')),     
+    const SettingsScreen(key: ValueKey('settings')),
+    const FocusModeScreen(key: ValueKey('focus_mode')),   // Index 6
   ];
 
   @override
