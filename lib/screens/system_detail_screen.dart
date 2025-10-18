@@ -378,6 +378,7 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "system_detail_fab",
         onPressed: () async {
           await Navigator.push(
             context,

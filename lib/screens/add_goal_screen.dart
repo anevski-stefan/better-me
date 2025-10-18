@@ -396,7 +396,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                           'Set a target date',
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
-                        subtitle: Text(_hasTargetDate 
+                        subtitle: Text(_hasTargetDate && _selectedTargetDate != null
                             ? 'Target: ${_formatDate(_selectedTargetDate!)}'
                             : 'No target date set'),
                         value: _hasTargetDate,

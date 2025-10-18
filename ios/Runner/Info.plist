@@ -45,5 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>background-fetch</string>
+	</array>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Better Me sends daily motivational quotes to inspire and motivate you on your self-improvement journey.</string>
 </dict>
 </plist>

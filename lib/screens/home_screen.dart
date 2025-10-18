@@ -96,13 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: false,
             actions: [
               IconButton(
-                icon: const Icon(Iconsax.refresh),
-                onPressed: () async {
-                  await _dataService.resetToSampleData();
-                  _loadSystems();
-                },
-              ),
-              IconButton(
                 icon: const Icon(Iconsax.setting_2),
                 onPressed: () {
                   // TODO: Add settings functionality

@@ -4,6 +4,7 @@ import '../services/data_service.dart';
 import '../services/gamification_service.dart';
 import '../services/export_service.dart';
 import '../services/import_service.dart';
+import '../services/notification_service.dart';
 import '../models/user_profile.dart';
 import 'achievements_screen.dart';
 
@@ -36,37 +37,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  Future<void> _resetToSampleData() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Data'),
-        content: const Text('This will replace all your data with sample data. Are you sure?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await _dataService.resetToSampleData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Data reset successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
-  }
 
   Future<void> _clearAllData() async {
     final confirmed = await showDialog<bool>(
@@ -421,9 +391,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
 
-            // App Info Section
+            const SizedBox(height: 24),
+
+            // Motivational Quotes Section
+            Text(
+              'Daily Motivation',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+
             Container(
-              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
@@ -436,44 +416,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Iconsax.crown_1,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 24,
-                        ),
+                  // Enable/Disable Quotes
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Better Me',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Version 1.0.0',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: const Icon(
+                        Iconsax.quote_up,
+                        color: Colors.purple,
+                        size: 20,
                       ),
-                    ],
+                    ),
+                    title: const Text('Daily Motivational Quotes'),
+                    subtitle: const Text('Receive inspiring quotes every day'),
+                    trailing: FutureBuilder<bool>(
+                      future: NotificationService.areQuotesEnabled(),
+                      builder: (context, snapshot) {
+                        return Switch(
+                          value: snapshot.data ?? false,
+                          onChanged: (value) async {
+                            await NotificationService.setQuotesEnabled(value);
+                            setState(() {});
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Set Quote Time
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Iconsax.clock,
+                        color: Colors.blue,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text('Quote Time'),
+                    subtitle: const Text('Set when to receive daily quotes'),
+                    trailing: FutureBuilder<TimeOfDay?>(
+                      future: NotificationService.getQuotesTime(),
+                      builder: (context, snapshot) {
+                        final time = snapshot.data;
+                        return Text(
+                          time != null 
+                            ? '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
+                            : 'Not set',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        );
+                      },
+                    ),
+                    onTap: () => _showTimePicker(),
+                  ),
+                  const Divider(height: 1),
+                  // Test Notification
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Iconsax.notification,
+                        color: Colors.green,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text('Test Notification'),
+                    subtitle: const Text('Send a test quote notification'),
+                    onTap: () async {
+                      await NotificationService.sendTestNotification();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Test notification sent!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    },
                   ),
                 ],
               ),
@@ -613,25 +644,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: _validateImportFile,
                   ),
                   const Divider(height: 1),
-                  // Reset to Sample Data
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Iconsax.refresh,
-                        color: Colors.purple,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text('Reset to Sample Data'),
-                    subtitle: const Text('Replace all data with sample systems and habits'),
-                    onTap: _resetToSampleData,
-                  ),
-                  const Divider(height: 1),
                   // Clear All Data
                   ListTile(
                     leading: Container(
@@ -702,5 +714,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  /// Show time picker for setting quote notification time
+  Future<void> _showTimePicker() async {
+    final currentTime = await NotificationService.getQuotesTime();
+    final initialTime = currentTime ?? const TimeOfDay(hour: 9, minute: 0);
+    
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+    
+    if (pickedTime != null) {
+      await NotificationService.setQuotesTime(pickedTime);
+      setState(() {});
+    }
   }
 }

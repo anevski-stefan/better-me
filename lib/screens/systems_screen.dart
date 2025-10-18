@@ -185,6 +185,7 @@ class _SystemsScreenState extends State<SystemsScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "systems_fab",
         onPressed: () async {
           await Navigator.push(
             context,

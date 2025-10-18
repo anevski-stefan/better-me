@@ -226,6 +226,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "goals_fab",
         onPressed: () async {
           await Navigator.push(
             context,
