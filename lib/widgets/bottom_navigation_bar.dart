@@ -81,7 +81,8 @@ class CustomBottomNavigationBar extends StatelessWidget {
   Widget _buildSystemsHabitsItem(BuildContext context) {
     final isSystemsSelected = currentIndex == 1;
     final isHabitsSelected = currentIndex == 2;
-    final isSelected = isSystemsSelected || isHabitsSelected;
+    final isFocusSelected = currentIndex == 6;
+    final isSelected = isSystemsSelected || isHabitsSelected || isFocusSelected;
     
     return GestureDetector(
       onTap: () => _showSystemsHabitsMenu(context),
@@ -180,6 +181,18 @@ class CustomBottomNavigationBar extends StatelessWidget {
                       onTap(2);
                     },
                     isSelected: currentIndex == 2,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildMenuOption(
+                    context,
+                    icon: Iconsax.timer_1,
+                    title: 'Focus Mode',
+                    subtitle: 'Pomodoro timer for deep work',
+                    onTap: () {
+                      Navigator.pop(context);
+                      onTap(6);
+                    },
+                    isSelected: currentIndex == 6,
                   ),
                   const SizedBox(height: 20),
                 ],

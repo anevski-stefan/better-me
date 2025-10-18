@@ -6,6 +6,7 @@ import 'habits_screen.dart';
 import 'goals_screen.dart';
 import 'journal_screen.dart';
 import 'settings_screen.dart';
+import 'focus_mode_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -23,7 +24,8 @@ class _MainScreenState extends State<MainScreen> {
     const HabitsScreen(),      
     const GoalsScreen(),       
     const JournalScreen(),     
-    const SettingsScreen(),  
+    const SettingsScreen(),
+    const FocusModeScreen(),   // Index 6
   ];
 
   @override
