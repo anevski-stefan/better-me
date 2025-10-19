@@ -10,20 +10,21 @@ class NotificationService {
   static const String _quotesEnabledKey = 'quotes_notifications_enabled';
   static const String _quotesTimeKey = 'quotes_notification_time';
   static const int _quotesNotificationId = 1001;
+  static const int _habitNotificationIdBase = 2000; // Base ID for habit notifications
 
   /// Initialize the notification service
   static Future<void> initialize() async {
     // Initialize timezone data
     tz.initializeTimeZones();
     
-    // Android initialization settings with foreground service
+    // Android initialization settings
     const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     
-    // iOS initialization settings
+    // iOS initialization settings - request alert permission first
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
     
     // Combined initialization settings
@@ -58,17 +59,21 @@ class NotificationService {
 
   /// Request notification permissions
   static Future<void> _requestPermissions() async {
-    await _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    // Request Android permissions
+    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      await androidPlugin.requestNotificationsPermission();
+    }
     
-    await _notifications
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+    // Request iOS permissions
+    final iosPlugin = _notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    if (iosPlugin != null) {
+      await iosPlugin.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
   }
 
   /// Check if quotes notifications are enabled
@@ -144,6 +149,10 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: 'default',
+      badgeNumber: 1,
+      interruptionLevel: InterruptionLevel.active,
+      categoryIdentifier: 'daily_quote',
     );
     
     // Combined notification details
@@ -152,16 +161,19 @@ class NotificationService {
       iOS: iosDetails,
     );
     
-    // Schedule the notification
+    final scheduledTime = _nextInstanceOfTime(time.hour, time.minute);
+    
+    // Schedule the notification using the same approach as the working test
     await _notifications.zonedSchedule(
       _quotesNotificationId,
       'Daily Motivation',
       quote.text,
-      _nextInstanceOfTime(time.hour, time.minute),
+      scheduledTime,
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       payload: 'daily_quote',
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
@@ -169,54 +181,112 @@ class NotificationService {
   static Future<void> _cancelDailyQuotes() async {
     await _notifications.cancel(_quotesNotificationId);
   }
-
-  /// Get the next instance of the specified time
-  static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+  
+  /// Schedule habit reminder notifications
+  static Future<void> scheduleHabitReminders(String habitId, String habitName, TimeOfDay reminderTime, List<int> reminderDays) async {
+    // Cancel existing notifications for this habit first
+    await cancelHabitReminders(habitId);
     
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
+    if (reminderDays.isEmpty || reminderTime == null) return;
     
-    return scheduledDate;
-  }
-
-  /// Send a test notification immediately
-  static Future<void> sendTestNotification() async {
-    final quote = QuotesService.getRandomQuote();
-    
+    // Android notification details
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'test_quotes',
-      'Test Motivational Quote',
-      channelDescription: 'Test notification for motivational quotes',
+      'habit_reminders',
+      'Habit Reminders',
+      channelDescription: 'Reminders for your daily habits',
       importance: Importance.max,
       priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
       showWhen: true,
       enableVibration: true,
       playSound: true,
       autoCancel: true,
+      ongoing: false,
     );
     
+    // iOS notification details
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: 'default',
+      badgeNumber: 1,
+      interruptionLevel: InterruptionLevel.active,
+      categoryIdentifier: 'habit_reminder',
     );
     
+    // Combined notification details
     const NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
     
-    await _notifications.show(
-      9999, // Test notification ID
-      'Test Motivation',
-      quote.text,
-      notificationDetails,
-      payload: 'test_quote',
-    );
+    // Schedule notifications for each selected day
+    for (int dayOfWeek in reminderDays) {
+      final scheduledTime = _getNextInstanceOfDayAndTime(dayOfWeek, reminderTime.hour, reminderTime.minute);
+      final notificationId = _habitNotificationIdBase + (habitId.hashCode % 1000) + dayOfWeek;
+      
+      await _notifications.zonedSchedule(
+        notificationId,
+        'Habit Reminder',
+        'Time for your habit: $habitName',
+        scheduledTime,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'habit_reminder_$habitId',
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      );
+    }
   }
+  
+  /// Cancel habit reminder notifications
+  static Future<void> cancelHabitReminders(String habitId) async {
+    // Cancel all possible notification IDs for this habit
+    for (int dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      final notificationId = _habitNotificationIdBase + (habitId.hashCode % 1000) + dayOfWeek;
+      await _notifications.cancel(notificationId);
+    }
+  }
+  
+  /// Get the next instance of a specific day and time
+  static tz.TZDateTime _getNextInstanceOfDayAndTime(int dayOfWeek, int hour, int minute) {
+    final now = DateTime.now();
+    final currentDayOfWeek = now.weekday % 7; // Convert to 0=Sunday format
+    
+    // Calculate days until the target day
+    int daysUntilTarget = (dayOfWeek - currentDayOfWeek) % 7;
+    if (daysUntilTarget == 0) {
+      // If it's the same day, check if time has passed
+      final todayTime = DateTime(now.year, now.month, now.day, hour, minute);
+      if (todayTime.isBefore(now)) {
+        daysUntilTarget = 7; // Schedule for next week
+      }
+    }
+    
+    final targetDate = now.add(Duration(days: daysUntilTarget));
+    final scheduledDate = DateTime(targetDate.year, targetDate.month, targetDate.day, hour, minute);
+    
+    return tz.TZDateTime.from(scheduledDate, tz.local);
+  }
+  
+
+  /// Get the next instance of the specified time
+  static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
+    final now = DateTime.now();
+    
+    // Create scheduled date for today
+    var scheduledDate = DateTime(now.year, now.month, now.day, hour, minute);
+    
+    // If the time has already passed today, schedule for tomorrow
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    
+    // Convert to TZDateTime using the same approach as the working test notification
+    return tz.TZDateTime.from(scheduledDate, tz.local);
+  }
+
 
   /// Get notification status
   static Future<bool> areNotificationsEnabled() async {
@@ -224,8 +294,23 @@ class NotificationService {
     if (androidPlugin != null) {
       return await androidPlugin.areNotificationsEnabled() ?? false;
     }
-    return true; // Assume enabled on iOS if we can't check
+    
+    // For iOS, we can't easily check permissions, so we'll assume they're enabled
+    // if the user hasn't explicitly denied them
+    return true;
   }
+  
+  /// Manually request permissions (useful for testing)
+  static Future<bool> requestPermissionsManually() async {
+    try {
+      await _requestPermissions();
+      return await areNotificationsEnabled();
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  
 
   /// Send notification that works in all app states
   static Future<void> sendNotification({
@@ -263,4 +348,5 @@ class NotificationService {
       notificationDetails,
     );
   }
+  
 }

@@ -6,7 +6,9 @@ import '../services/data_service.dart';
 import '../services/gamification_service.dart';
 
 class AddSystemScreen extends StatefulWidget {
-  const AddSystemScreen({super.key});
+  final System? systemToEdit;
+  
+  const AddSystemScreen({super.key, this.systemToEdit});
 
   @override
   State<AddSystemScreen> createState() => _AddSystemScreenState();
@@ -40,6 +42,14 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
   void initState() {
     super.initState();
     _loadGoals();
+    
+    // If editing an existing system, populate the form
+    if (widget.systemToEdit != null) {
+      _nameController.text = widget.systemToEdit!.name;
+      _descriptionController.text = widget.systemToEdit!.description;
+      _selectedCategory = widget.systemToEdit!.category;
+      // Don't set _selectedGoalId here - it will be set in _loadGoals after goals are loaded
+    }
   }
 
   @override
@@ -53,6 +63,18 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
     final goals = await _dataService.getGoals();
     setState(() {
       _goals = goals;
+      
+      // If editing an existing system, set the selected goal ID after goals are loaded
+      if (widget.systemToEdit != null && widget.systemToEdit!.goalId != null) {
+        // Check if the goal still exists in the goals list
+        final goalExists = goals.any((goal) => goal.id == widget.systemToEdit!.goalId);
+        if (goalExists) {
+          _selectedGoalId = widget.systemToEdit!.goalId;
+        } else {
+          // Goal was deleted, so clear the selection
+          _selectedGoalId = null;
+        }
+      }
     });
   }
 
@@ -65,18 +87,21 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
 
     try {
       final system = System(
-        id: _dataService.generateId(),
+        id: widget.systemToEdit?.id ?? _dataService.generateId(),
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         category: _selectedCategory,
         goalId: _selectedGoalId,
-        createdAt: DateTime.now(),
+        createdAt: widget.systemToEdit?.createdAt ?? DateTime.now(),
+        habits: widget.systemToEdit?.habits ?? [],
       );
 
       await _dataService.saveSystem(system);
       
-      // Award XP for creating system
-      await _gamificationService.createSystem();
+      // Award XP for creating system (only if it's a new system)
+      if (widget.systemToEdit == null) {
+        await _gamificationService.createSystem();
+      }
 
       if (mounted) {
         Navigator.pop(context);
@@ -135,9 +160,11 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'System created successfully!',
+                              widget.systemToEdit == null 
+                                  ? 'System created successfully!' 
+                                  : 'System updated successfully!',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -190,7 +217,7 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Create System',
+          widget.systemToEdit == null ? 'Create System' : 'Edit System',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -495,7 +522,7 @@ class _AddSystemScreenState extends State<AddSystemScreen> {
                               const Icon(Iconsax.add_square, size: 20),
                               const SizedBox(width: 8),
                               Text(
-                                'Create System',
+                                widget.systemToEdit == null ? 'Create System' : 'Update System',
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,

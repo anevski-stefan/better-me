@@ -3,11 +3,13 @@ import 'package:velocity_x/velocity_x.dart';
 import 'package:iconsax/iconsax.dart';
 import '../models/habit.dart';
 import '../services/data_service.dart';
+import '../services/notification_service.dart';
 
 class AddHabitScreen extends StatefulWidget {
   final String systemId;
+  final Habit? habitToEdit;
 
-  const AddHabitScreen({super.key, required this.systemId});
+  const AddHabitScreen({super.key, required this.systemId, this.habitToEdit});
 
   @override
   State<AddHabitScreen> createState() => _AddHabitScreenState();
@@ -26,6 +28,28 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   final List<String> _dayNames = [
     'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // If editing an existing habit, populate the form
+    if (widget.habitToEdit != null) {
+      _nameController.text = widget.habitToEdit!.name;
+      _descriptionController.text = widget.habitToEdit!.description;
+      _hasReminder = widget.habitToEdit!.hasReminder;
+      _reminderTime = widget.habitToEdit!.reminderTime;
+      
+      // Set the selected days
+      if (widget.habitToEdit!.reminderDays != null) {
+        for (int day in widget.habitToEdit!.reminderDays!) {
+          if (day >= 0 && day < 7) {
+            _daySelected[day] = true;
+          }
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -55,17 +79,38 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
 
     try {
       final habit = Habit(
-        id: _dataService.generateId(),
+        id: widget.habitToEdit?.id ?? _dataService.generateId(),
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         systemId: widget.systemId,
-        createdAt: DateTime.now(),
+        createdAt: widget.habitToEdit?.createdAt ?? DateTime.now(),
         hasReminder: _hasReminder,
         reminderTime: _reminderTime,
         reminderDays: _daySelected.asMap().entries.where((entry) => entry.value).map((entry) => entry.key).toList(),
+        isCompleted: widget.habitToEdit?.isCompleted ?? false,
+        completedAt: widget.habitToEdit?.completedAt,
+        completedDates: widget.habitToEdit?.completedDates,
       );
 
-      await _dataService.addHabitToSystem(widget.systemId, habit);
+      if (widget.habitToEdit == null) {
+        await _dataService.addHabitToSystem(widget.systemId, habit);
+      } else {
+        await _dataService.updateHabitInSystem(widget.systemId, habit);
+      }
+      
+      // Schedule habit reminder notifications
+      if (_hasReminder && _reminderTime != null) {
+        final reminderDays = _daySelected.asMap().entries.where((entry) => entry.value).map((entry) => entry.key).toList();
+        await NotificationService.scheduleHabitReminders(
+          habit.id,
+          habit.name,
+          _reminderTime!,
+          reminderDays,
+        );
+      } else {
+        // Cancel notifications if reminder is disabled
+        await NotificationService.cancelHabitReminders(habit.id);
+      }
 
       if (mounted) {
         Navigator.pop(context);
@@ -124,9 +169,11 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'Habit added successfully!',
+                              widget.habitToEdit == null 
+                                  ? 'Habit added successfully!' 
+                                  : 'Habit updated successfully!',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -179,7 +226,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Add Habit',
+          widget.habitToEdit == null ? 'Add Habit' : 'Edit Habit',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -539,7 +586,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                               const Icon(Iconsax.tick_circle, size: 20),
                               const SizedBox(width: 8),
                               Text(
-                                'Add Habit',
+                                widget.habitToEdit == null ? 'Add Habit' : 'Update Habit',
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,

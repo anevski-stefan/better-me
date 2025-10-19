@@ -4,6 +4,8 @@ import '../models/habit.dart';
 import '../models/system.dart';
 import '../services/data_service.dart';
 import '../services/gamification_service.dart';
+import '../services/notification_service.dart';
+import 'add_habit_screen.dart';
 
 class HabitDetailScreen extends StatefulWidget {
   final Habit habit;
@@ -103,6 +105,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
 
     if (confirmed == true) {
       await _dataService.deleteHabitFromSystem(_currentSystem.id, _currentHabit.id);
+      // Cancel habit reminder notifications
+      await NotificationService.cancelHabitReminders(_currentHabit.id);
       if (mounted) {
         Navigator.pop(context, true); // Return true to indicate deletion
       }
@@ -236,6 +240,21 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         title: Text(_currentHabit.name),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          IconButton(
+            icon: const Icon(Iconsax.edit_2),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddHabitScreen(
+                    systemId: _currentSystem.id,
+                    habitToEdit: _currentHabit,
+                  ),
+                ),
+              );
+              _loadHabit(); // Refresh after returning
+            },
+          ),
           IconButton(
             icon: const Icon(Iconsax.trash, color: Colors.red),
             onPressed: _deleteHabit,

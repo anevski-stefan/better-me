@@ -33,7 +33,7 @@ class System {
       name: name ?? this.name,
       description: description ?? this.description,
       category: category ?? this.category,
-      goalId: goalId,
+      goalId: goalId ?? this.goalId,
       createdAt: createdAt ?? this.createdAt,
       habits: habits ?? this.habits,
     );

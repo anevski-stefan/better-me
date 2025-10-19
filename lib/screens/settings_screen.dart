@@ -477,35 +477,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     onTap: () => _showTimePicker(),
                   ),
-                  const Divider(height: 1),
-                  // Test Notification
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Iconsax.notification,
-                        color: Colors.green,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text('Test Notification'),
-                    subtitle: const Text('Send a test quote notification'),
-                    onTap: () async {
-                      await NotificationService.sendTestNotification();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Test notification sent!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    },
-                  ),
                 ],
               ),
             ),

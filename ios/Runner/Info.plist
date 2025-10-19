@@ -49,8 +49,14 @@
 	<array>
 		<string>background-processing</string>
 		<string>background-fetch</string>
+		<string>remote-notification</string>
 	</array>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>Better Me sends daily motivational quotes to inspire and motivate you on your self-improvement journey.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

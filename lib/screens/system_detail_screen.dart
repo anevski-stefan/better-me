@@ -4,7 +4,9 @@ import '../models/system.dart';
 import '../models/habit.dart';
 import '../services/data_service.dart';
 import '../services/gamification_service.dart';
+import '../services/notification_service.dart';
 import 'add_habit_screen.dart';
+import 'add_system_screen.dart';
 
 class SystemDetailScreen extends StatefulWidget {
   final System system;
@@ -75,6 +77,23 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
   }
 
   Future<void> _toggleHabitForDate(Habit habit, DateTime date) async {
+    // Only allow toggling today's date
+    final today = DateTime.now();
+    final isToday = date.year == today.year &&
+        date.month == today.month &&
+        date.day == today.day;
+    
+    if (!isToday) {
+      // Show a message that only today can be toggled
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can only mark habits as completed for today'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    
     print('Toggling habit ${habit.name} for date ${date.day}/${date.month}');
     
     // Create a date with only year, month, day (no time)
@@ -137,6 +156,8 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
 
     if (confirmed == true) {
       await _dataService.deleteHabitFromSystem(_currentSystem.id, habit.id);
+      // Cancel habit reminder notifications
+      await NotificationService.cancelHabitReminders(habit.id);
       _loadSystem();
     }
   }
@@ -186,20 +207,23 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
           final isToday = date.year == DateTime.now().year &&
               date.month == DateTime.now().month &&
               date.day == DateTime.now().day;
+          final isFuture = date.isAfter(DateTime.now());
           
           return GestureDetector(
             key: ValueKey('day_${date.day}_${date.month}'),
-            onTap: () {
+            onTap: isToday ? () {
               print('Day ${_getDayAbbreviation(date)} clicked for habit ${habit.name}');
               _toggleHabitForDate(habit, date);
-            },
+            } : null,
             child: Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
                 color: isCompleted 
                     ? Colors.green 
-                    : Colors.red.withOpacity(0.3),
+                    : (isFuture || isToday)
+                        ? Colors.grey.withOpacity(0.3) // Today and future days show same grey
+                        : Colors.red.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(6),
                 border: isToday 
                     ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
@@ -209,7 +233,11 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                 child: Text(
                   _getDayAbbreviation(date),
                   style: TextStyle(
-                    color: isCompleted ? Colors.white : Colors.red,
+                    color: isCompleted 
+                        ? Colors.white 
+                        : (isFuture || isToday)
+                            ? Colors.grey // Today and future days show same grey text
+                            : Colors.red,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
@@ -229,6 +257,18 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
         title: Text(_currentSystem.name),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          IconButton(
+            icon: const Icon(Iconsax.edit_2),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddSystemScreen(systemToEdit: _currentSystem),
+                ),
+              );
+              _loadSystem(); // Refresh after returning
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.delete),
             onPressed: () async {
@@ -355,9 +395,20 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                                   ),
                                   Row(
                                     children: [
-                                      Checkbox(
-                                        value: habit.isCompleted,
-                                        onChanged: (value) => _toggleHabit(habit),
+                                      IconButton(
+                                        icon: const Icon(Iconsax.edit_2, size: 20),
+                                        onPressed: () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => AddHabitScreen(
+                                                systemId: _currentSystem.id,
+                                                habitToEdit: habit,
+                                              ),
+                                            ),
+                                          );
+                                          _loadSystem(); // Refresh after returning
+                                        },
                                       ),
                                       IconButton(
                                         icon: const Icon(Iconsax.trash, color: Colors.red, size: 20),
