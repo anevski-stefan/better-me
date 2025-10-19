@@ -7,6 +7,7 @@ import '../services/gamification_service.dart';
 import '../services/notification_service.dart';
 import 'add_habit_screen.dart';
 import 'add_system_screen.dart';
+import 'habit_detail_screen.dart';
 
 class SystemDetailScreen extends StatefulWidget {
   final System system;
@@ -358,68 +359,82 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                     itemCount: _currentSystem.habits.length,
                     itemBuilder: (context, index) {
                       final habit = _currentSystem.habits[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                      return GestureDetector(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HabitDetailScreen(
+                                habit: habit,
+                                system: _currentSystem,
+                              ),
+                            ),
+                          );
+                          _loadSystem(); // Refresh after returning
+                        },
+                        child: Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            habit.name,
+                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                              decoration: habit.isCompleted 
+                                                  ? TextDecoration.lineThrough 
+                                                  : null,
+                                              color: habit.isCompleted 
+                                                  ? Colors.grey 
+                                                  : null,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            habit.description,
+                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                              color: Theme.of(context).textTheme.bodySmall?.color,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Row(
                                       children: [
-                                        Text(
-                                          habit.name,
-                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            decoration: habit.isCompleted 
-                                                ? TextDecoration.lineThrough 
-                                                : null,
-                                            color: habit.isCompleted 
-                                                ? Colors.grey 
-                                                : null,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                        IconButton(
+                                          icon: const Icon(Iconsax.edit_2, size: 20),
+                                          onPressed: () async {
+                                            await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => AddHabitScreen(
+                                                  systemId: _currentSystem.id,
+                                                  habitToEdit: habit,
+                                                ),
+                                              ),
+                                            );
+                                            _loadSystem(); // Refresh after returning
+                                          },
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          habit.description,
-                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: Theme.of(context).textTheme.bodySmall?.color,
-                                          ),
+                                        IconButton(
+                                          icon: const Icon(Iconsax.trash, size: 20),
+                                          onPressed: () => _deleteHabit(habit),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Iconsax.edit_2, size: 20),
-                                        onPressed: () async {
-                                          await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => AddHabitScreen(
-                                                systemId: _currentSystem.id,
-                                                habitToEdit: habit,
-                                              ),
-                                            ),
-                                          );
-                                          _loadSystem(); // Refresh after returning
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Iconsax.trash, color: Colors.red, size: 20),
-                                        onPressed: () => _deleteHabit(habit),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              _buildWeeklyTracker(habit),
-                            ],
+                                  ],
+                                ),
+                                _buildWeeklyTracker(habit),
+                              ],
+                            ),
                           ),
                         ),
                       );

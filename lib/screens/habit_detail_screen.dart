@@ -26,6 +26,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
   final GamificationService _gamificationService = GamificationService();
   late Habit _currentHabit;
   late System _currentSystem;
+  DateTime _currentDisplayMonth = DateTime.now();
 
   @override
   void initState() {
@@ -186,51 +187,143 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     _loadHabit();
   }
 
-  Widget _buildWeeklyTracker(Habit habit) {
-    final weekDays = _getWeekDays(habit.createdAt);
-    
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: weekDays.map((date) {
-          final isCompleted = _isHabitCompletedOnDate(habit, date);
-          final isToday = date.year == DateTime.now().year &&
-              date.month == DateTime.now().month &&
-              date.day == DateTime.now().day;
-          
-          return GestureDetector(
-            key: ValueKey('day_${date.day}_${date.month}'),
-            onTap: () {
-              _toggleHabitForDate(habit, date);
-            },
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isCompleted 
-                    ? Colors.green 
-                    : Colors.red.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(6),
-                border: isToday 
-                    ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                    : null,
-              ),
-              child: Center(
-                child: Text(
-                  _getDayAbbreviation(date),
-                  style: TextStyle(
-                    color: isCompleted ? Colors.white : Colors.red,
+  Widget _buildCalendarView(Habit habit) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Month navigation header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () {
+                    setState(() {
+                      _currentDisplayMonth = DateTime(
+                        _currentDisplayMonth.year,
+                        _currentDisplayMonth.month - 1,
+                      );
+                    });
+                  },
+                ),
+                Text(
+                  '${_getMonthName(_currentDisplayMonth.month)} ${_currentDisplayMonth.year}',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
                   ),
                 ),
-              ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () {
+                    setState(() {
+                      _currentDisplayMonth = DateTime(
+                        _currentDisplayMonth.year,
+                        _currentDisplayMonth.month + 1,
+                      );
+                    });
+                  },
+                ),
+              ],
             ),
-          );
-        }).toList(),
+            const SizedBox(height: 16),
+            _buildMonthView(habit, _currentDisplayMonth),
+          ],
+        ),
       ),
     );
+  }
+  
+  Widget _buildMonthView(Habit habit, DateTime month) {
+    final startOfMonth = DateTime(month.year, month.month, 1);
+    final endOfMonth = DateTime(month.year, month.month + 1, 0);
+    final firstDayOfWeek = startOfMonth.weekday % 7; // 0 = Sunday
+    
+    // Generate calendar days
+    final List<Widget> calendarDays = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (int i = 0; i < firstDayOfWeek; i++) {
+      calendarDays.add(Container());
+    }
+    
+    // Add days of the month
+    for (int day = 1; day <= endOfMonth.day; day++) {
+      final date = DateTime(month.year, month.month, day);
+      final isCompleted = _isHabitCompletedOnDate(habit, date);
+      final isToday = date.year == DateTime.now().year && 
+                     date.month == DateTime.now().month && 
+                     date.day == DateTime.now().day;
+      
+      calendarDays.add(
+        Container(
+          width: 40,
+          height: 40,
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: isCompleted 
+                ? Colors.green 
+                : Colors.grey.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8),
+            border: isToday 
+                ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              day.toString(),
+              style: TextStyle(
+                color: isCompleted 
+                    ? Colors.white 
+                    : Colors.grey,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return Column(
+      children: [
+        // Day headers
+        Row(
+          children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+              .map((day) => Expanded(
+                    child: Center(
+                      child: Text(
+                        day,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 8),
+        // Calendar grid
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 7,
+          childAspectRatio: 1.0,
+          children: calendarDays,
+        ),
+      ],
+    );
+  }
+  
+  String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
   }
 
   @override
@@ -256,13 +349,13 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Iconsax.trash, color: Colors.red),
+            icon: const Icon(Iconsax.trash),
             onPressed: _deleteHabit,
           ),
         ],
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,32 +397,6 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                               ],
                             ),
                           ),
-                          GestureDetector(
-                            onTap: _toggleHabit,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: _currentHabit.isCompleted
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                                border: _currentHabit.isCompleted
-                                    ? null
-                                    : Border.all(
-                                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                                        width: 2,
-                                      ),
-                              ),
-                              child: _currentHabit.isCompleted
-                                  ? const Icon(
-                                      Iconsax.tick_circle,
-                                      color: Colors.white,
-                                      size: 20,
-                                    )
-                                  : null,
-                            ),
-                          ),
                         ],
                       ),
                       if (_currentHabit.hasReminder) ...[
@@ -365,101 +432,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
               ),
               
               const SizedBox(height: 24),
+              _buildCalendarView(_currentHabit),
               
-              // Weekly Progress
-              Text(
-                'Weekly Progress',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildWeeklyTracker(_currentHabit),
-              
-              const SizedBox(height: 24),
-              
-              // Completion Stats
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Completion Stats',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Created',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                                Text(
-                                  '${_currentHabit.createdAt.day}/${_currentHabit.createdAt.month}/${_currentHabit.createdAt.year}',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (_currentHabit.completedAt != null)
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Last Completed',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).textTheme.bodySmall?.color,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${_currentHabit.completedAt!.day}/${_currentHabit.completedAt!.month}/${_currentHabit.completedAt!.year}',
-                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Last Completed',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).textTheme.bodySmall?.color,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Never',
-                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).textTheme.bodySmall?.color,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),

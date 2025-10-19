@@ -1,0 +1,10 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="512" fill="#4CAF50"/>
+  
+  <!-- Checkmark -->
+  <path d="M256 512L448 704L768 384" stroke="white" stroke-width="80" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <!-- Small circle for accent -->
+  <circle cx="768" cy="256" r="64" fill="white" opacity="0.3"/>
+</svg>
