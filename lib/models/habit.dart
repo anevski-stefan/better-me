@@ -114,4 +114,16 @@ class Habit {
           : null,
     );
   }
+
+  /// Check if this habit should be available for completion on a specific date
+  bool shouldBeAvailableOnDate(DateTime date) {
+    // One-time habits are always available until completed
+    if (type == HabitType.oneTime) {
+      return !isCompleted;
+    }
+    
+    // For recurring habits, check if the day of week is in reminderDays
+    final dayOfWeek = date.weekday % 7; // Convert to 0=Sunday, 1=Monday, etc.
+    return reminderDays.contains(dayOfWeek);
+  }
 }

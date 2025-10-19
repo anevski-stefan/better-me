@@ -147,6 +147,11 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         completedDate.day == date.day);
   }
 
+  bool _isHabitAvailableOnDate(Habit habit, DateTime date) {
+    // Check if the habit should be available on this date based on frequency
+    return habit.shouldBeAvailableOnDate(date);
+  }
+
   Future<void> _toggleHabitForDate(Habit habit, DateTime date) async {
     // Create a date with only year, month, day (no time)
     final dateOnly = DateTime(date.year, date.month, date.day);
@@ -252,33 +257,43 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     for (int day = 1; day <= endOfMonth.day; day++) {
       final date = DateTime(month.year, month.month, day);
       final isCompleted = _isHabitCompletedOnDate(habit, date);
+      final isAvailable = _isHabitAvailableOnDate(habit, date);
       final isToday = date.year == DateTime.now().year && 
                      date.month == DateTime.now().month && 
                      date.day == DateTime.now().day;
       
       calendarDays.add(
-        Container(
-          width: 40,
-          height: 40,
-          margin: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: isCompleted 
-                ? Colors.green 
-                : Colors.grey.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8),
-            border: isToday 
-                ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                : null,
-          ),
-          child: Center(
-            child: Text(
-              day.toString(),
-              style: TextStyle(
-                color: isCompleted 
-                    ? Colors.white 
-                    : Colors.grey,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+        GestureDetector(
+          onTap: isAvailable ? () => _toggleHabitForDate(habit, date) : null,
+          child: Container(
+            width: 40,
+            height: 40,
+            margin: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: isCompleted 
+                  ? Colors.green 
+                  : isAvailable
+                      ? Colors.blue.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: isToday 
+                  ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                  : isAvailable
+                      ? Border.all(color: Colors.blue.withOpacity(0.5), width: 1)
+                      : null,
+            ),
+            child: Center(
+              child: Text(
+                day.toString(),
+                style: TextStyle(
+                  color: isCompleted 
+                      ? Colors.white 
+                      : isAvailable
+                          ? Colors.blue
+                          : Colors.grey.withOpacity(0.5),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
