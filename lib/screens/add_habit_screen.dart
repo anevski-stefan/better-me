@@ -24,6 +24,9 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   bool _hasReminder = false;
   TimeOfDay? _reminderTime;
   List<bool> _daySelected = [false, false, false, false, false, false, false];
+  HabitType _habitType = HabitType.recurring;
+  String _frequencyType = 'daily'; // 'daily', 'weekly', 'custom'
+  int _selectedWeeklyDay = 1; // 0=Sunday, 1=Monday, etc.
 
   final List<String> _dayNames = [
     'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
@@ -37,6 +40,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     if (widget.habitToEdit != null) {
       _nameController.text = widget.habitToEdit!.name;
       _descriptionController.text = widget.habitToEdit!.description;
+      _habitType = widget.habitToEdit!.type;
       _hasReminder = widget.habitToEdit!.hasReminder;
       _reminderTime = widget.habitToEdit!.reminderTime;
       
@@ -73,6 +77,30 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   Future<void> _saveHabit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate habit type specific requirements
+    if (_habitType == HabitType.oneTime && _hasReminder) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('One-time habits cannot have reminders'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Validate that recurring habits have appropriate day selection
+    if (_habitType == HabitType.recurring) {
+      if (_frequencyType == 'custom' && !_daySelected.any((day) => day)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select at least one day for custom frequency'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -83,10 +111,15 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         systemId: widget.systemId,
+        type: _habitType,
         createdAt: widget.habitToEdit?.createdAt ?? DateTime.now(),
         hasReminder: _hasReminder,
         reminderTime: _reminderTime,
-        reminderDays: _daySelected.asMap().entries.where((entry) => entry.value).map((entry) => entry.key).toList(),
+        reminderDays: _frequencyType == 'daily' 
+            ? [0, 1, 2, 3, 4, 5, 6] // All days for daily
+            : _frequencyType == 'weekly'
+                ? [_selectedWeeklyDay] // Single day for weekly
+                : _daySelected.asMap().entries.where((entry) => entry.value).map((entry) => entry.key).toList(), // Custom days
         isCompleted: widget.habitToEdit?.isCompleted ?? false,
         completedAt: widget.habitToEdit?.completedAt,
         completedDates: widget.habitToEdit?.completedDates,
@@ -400,7 +433,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
 
                 const SizedBox(height: 24),
 
-                // Reminder Section
+                // Habit Type Selection
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -423,13 +456,13 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                       Row(
                         children: [
                           Icon(
-                            Iconsax.notification,
+                            Iconsax.calendar,
                             color: Theme.of(context).colorScheme.primary,
                             size: 20,
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Reminder',
+                            'Habit Type',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -438,79 +471,460 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                       ),
                       const SizedBox(height: 16),
                       
-                      // Reminder Toggle
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Enable reminder',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        value: _hasReminder,
-                        onChanged: (value) {
-                          setState(() {
-                            _hasReminder = value;
-                            if (!value) {
-                              _reminderTime = null;
-                              _daySelected = [false, false, false, false, false, false, false];
-                            }
-                          });
-                        },
-                        activeColor: Theme.of(context).colorScheme.primary,
-                      ),
-                      
-                      if (_hasReminder) ...[
-                        const SizedBox(height: 16),
-                        
-                        // Time Selection
-                        InkWell(
-                          onTap: _selectTime,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Theme.of(context).dividerColor.withOpacity(0.3),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Iconsax.clock,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  _reminderTime != null
-                                      ? _reminderTime!.format(context)
-                                      : 'Select time',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: _reminderTime != null
-                                        ? Theme.of(context).textTheme.bodyLarge?.color
-                                        : Theme.of(context).textTheme.bodySmall?.color,
+                      // One-time vs Recurring selection
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _habitType = HabitType.oneTime;
+                                  // Reset reminder settings for one-time habits
+                                  _hasReminder = false;
+                                  _reminderTime = null;
+                                  _daySelected = [false, false, false, false, false, false, false];
+                                  _frequencyType = 'daily';
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                                decoration: BoxDecoration(
+                                  color: _habitType == HabitType.oneTime
+                                      ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _habitType == HabitType.oneTime
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).dividerColor.withOpacity(0.3),
+                                    width: _habitType == HabitType.oneTime ? 2 : 1,
                                   ),
                                 ),
-                                const Spacer(),
-                                Icon(
-                                  Iconsax.arrow_down_1,
-                                  color: Theme.of(context).textTheme.bodySmall?.color,
-                                  size: 16,
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Iconsax.calendar_1,
+                                      color: _habitType == HabitType.oneTime
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).textTheme.bodySmall?.color,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'One-time',
+                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: _habitType == HabitType.oneTime
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).textTheme.bodySmall?.color,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Complete once',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: _habitType == HabitType.oneTime
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).textTheme.bodySmall?.color,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _habitType = HabitType.recurring;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                                decoration: BoxDecoration(
+                                  color: _habitType == HabitType.recurring
+                                      ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _habitType == HabitType.recurring
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).dividerColor.withOpacity(0.3),
+                                    width: _habitType == HabitType.recurring ? 2 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Iconsax.refresh,
+                                      color: _habitType == HabitType.recurring
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).textTheme.bodySmall?.color,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Recurring',
+                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: _habitType == HabitType.recurring
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).textTheme.bodySmall?.color,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Repeat regularly',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: _habitType == HabitType.recurring
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).textTheme.bodySmall?.color,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Show info message for one-time habits
+                if (_habitType == HabitType.oneTime) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Iconsax.info_circle,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'One-time habits are completed once and don\'t need reminders or repeat schedules.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                         ),
-                        
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                // Frequency Selection (only for recurring habits)
+                if (_habitType == HabitType.recurring) ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).dividerColor.withOpacity(0.1),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Iconsax.refresh,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Frequency',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 16),
                         
-                        // Days Selection
+                        // Frequency options
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _frequencyType = 'daily';
+                                    _daySelected = [true, true, true, true, true, true, true]; // All days for daily
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: _frequencyType == 'daily'
+                                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: _frequencyType == 'daily'
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).dividerColor.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Daily',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: _frequencyType == 'daily'
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).textTheme.bodyMedium?.color,
+                                      fontWeight: _frequencyType == 'daily' ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _frequencyType = 'weekly';
+                                    _daySelected = [false, false, false, false, false, false, false]; // Reset for weekly
+                                    _selectedWeeklyDay = 1; // Default to Monday
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: _frequencyType == 'weekly'
+                                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: _frequencyType == 'weekly'
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).dividerColor.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Weekly',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: _frequencyType == 'weekly'
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).textTheme.bodyMedium?.color,
+                                      fontWeight: _frequencyType == 'weekly' ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _frequencyType = 'custom';
+                                    _daySelected = [false, false, false, false, false, false, false]; // Reset for custom
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: _frequencyType == 'custom'
+                                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: _frequencyType == 'custom'
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).dividerColor.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Custom',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: _frequencyType == 'custom'
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).textTheme.bodyMedium?.color,
+                                      fontWeight: _frequencyType == 'custom' ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                // Weekly Day Selection (only for weekly frequency)
+                if (_habitType == HabitType.recurring && _frequencyType == 'weekly') ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).dividerColor.withOpacity(0.1),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Iconsax.calendar_1,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Weekly Day',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
                         Text(
-                          'Repeat on:',
+                          'Select which day of the week you want to do this habit:',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
+                        
+                        Wrap(
+                          spacing: 8,
+                          children: List.generate(7, (index) {
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedWeeklyDay = index;
+                                });
+                              },
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: _selectedWeeklyDay == index
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _selectedWeeklyDay == index
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).dividerColor.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _dayNames[index],
+                                    style: TextStyle(
+                                      color: _selectedWeeklyDay == index
+                                          ? Colors.white
+                                          : Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                // Days Selection (only for custom frequency)
+                if (_habitType == HabitType.recurring && _frequencyType == 'custom') ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).dividerColor.withOpacity(0.1),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Iconsax.calendar_1,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Repeat Days',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        Text(
+                          _frequencyType == 'weekly' 
+                              ? 'Select which day of the week you want to do this habit:'
+                              : 'Select which days you want to do this habit:',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
                         Wrap(
                           spacing: 8,
                           children: List.generate(7, (index) {
@@ -551,9 +965,116 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                           }),
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                ],
+
+                // Reminder Section (for all recurring habits)
+                if (_habitType == HabitType.recurring) ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).dividerColor.withOpacity(0.1),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Iconsax.notification,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Reminder',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Reminder Toggle
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Enable reminder',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          value: _hasReminder,
+                          onChanged: (value) {
+                            setState(() {
+                              _hasReminder = value;
+                              if (!value) {
+                                _reminderTime = null;
+                              }
+                            });
+                          },
+                          activeColor: Theme.of(context).colorScheme.primary,
+                        ),
+                        
+                        if (_hasReminder) ...[
+                          const SizedBox(height: 16),
+                          
+                          // Time Selection
+                          InkWell(
+                            onTap: _selectTime,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Iconsax.clock,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    _reminderTime != null
+                                        ? _reminderTime!.format(context)
+                                        : 'Select time',
+                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: _reminderTime != null
+                                          ? Theme.of(context).textTheme.bodyLarge?.color
+                                          : Theme.of(context).textTheme.bodySmall?.color,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Icon(
+                                    Iconsax.arrow_down_1,
+                                    color: Theme.of(context).textTheme.bodySmall?.color,
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 32),
 

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
+enum HabitType {
+  oneTime,
+  recurring,
+}
+
 class Habit {
   final String id;
   final String name;
   final String description;
   final String systemId;
+  final HabitType type;
   final bool isCompleted;
   final DateTime createdAt;
   final DateTime? completedAt;
@@ -18,6 +24,7 @@ class Habit {
     required this.name,
     required this.description,
     required this.systemId,
+    this.type = HabitType.recurring,
     this.isCompleted = false,
     required this.createdAt,
     this.completedAt,
@@ -32,6 +39,7 @@ class Habit {
     String? name,
     String? description,
     String? systemId,
+    HabitType? type,
     bool? isCompleted,
     DateTime? createdAt,
     DateTime? completedAt,
@@ -45,6 +53,7 @@ class Habit {
       name: name ?? this.name,
       description: description ?? this.description,
       systemId: systemId ?? this.systemId,
+      type: type ?? this.type,
       isCompleted: isCompleted ?? this.isCompleted,
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt,
@@ -61,6 +70,7 @@ class Habit {
       'name': name,
       'description': description,
       'systemId': systemId,
+      'type': type.name,
       'isCompleted': isCompleted,
       'createdAt': createdAt.toIso8601String(),
       'completedAt': completedAt?.toIso8601String(),
@@ -88,6 +98,9 @@ class Habit {
       name: json['name'],
       description: json['description'],
       systemId: json['systemId'],
+      type: json['type'] != null 
+          ? HabitType.values.firstWhere((e) => e.name == json['type'])
+          : HabitType.recurring, // Default to recurring for backward compatibility
       isCompleted: json['isCompleted'] ?? false,
       createdAt: DateTime.parse(json['createdAt']),
       completedAt: json['completedAt'] != null 
