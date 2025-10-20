@@ -148,8 +148,63 @@ class Habit {
       return !isCompleted;
     }
     
-    // For recurring habits, check if the day of week is in reminderDays
+    // For flexible frequency habits, available on any day
+    if (useFlexibleFrequency == true) {
+      return true;
+    }
+    
+    // For recurring habits with specific days, check if the day of week is in reminderDays
     final dayOfWeek = date.weekday % 7; // Convert to 0=Sunday, 1=Monday, etc.
     return reminderDays.contains(dayOfWeek);
+  }
+
+  /// Check if the weekly target has been met for flexible frequency habits
+  bool isWeeklyTargetMet(DateTime weekStart) {
+    if (useFlexibleFrequency != true || targetDaysPerWeek == null) {
+      return true; // Not a flexible frequency habit, so target is always "met"
+    }
+    
+    if (completedDates == null || completedDates!.isEmpty) {
+      return false;
+    }
+    
+    // Calculate the end of the week (6 days after start)
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    
+    // Count completed days in this week
+    final completedDaysInWeek = completedDates!.where((completedDate) {
+      return completedDate.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+             completedDate.isBefore(weekEnd.add(const Duration(days: 1)));
+    }).length;
+    
+    return completedDaysInWeek >= targetDaysPerWeek!;
+  }
+
+  /// Get the current week's progress for flexible frequency habits
+  Map<String, int> getWeeklyProgress(DateTime weekStart) {
+    if (useFlexibleFrequency != true || targetDaysPerWeek == null) {
+      return {'completed': 0, 'target': 0, 'remaining': 0};
+    }
+    
+    if (completedDates == null || completedDates!.isEmpty) {
+      return {'completed': 0, 'target': targetDaysPerWeek!, 'remaining': targetDaysPerWeek!};
+    }
+    
+    // Calculate the end of the week (6 days after start)
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    
+    // Count completed days in this week
+    final completedDaysInWeek = completedDates!.where((completedDate) {
+      return completedDate.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+             completedDate.isBefore(weekEnd.add(const Duration(days: 1)));
+    }).length;
+    
+    final remaining = (targetDaysPerWeek! - completedDaysInWeek).clamp(0, targetDaysPerWeek!);
+    
+    return {
+      'completed': completedDaysInWeek,
+      'target': targetDaysPerWeek!,
+      'remaining': remaining,
+    };
   }
 }
