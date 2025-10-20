@@ -126,8 +126,8 @@ class NotificationService {
     final time = await getQuotesTime();
     if (time == null) return;
     
-    // Get today's quote
-    final quote = QuotesService.getTodaysQuote();
+    // Get a random quote
+    final quote = QuotesService.getRandomQuote();
     
     // Android notification details
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(

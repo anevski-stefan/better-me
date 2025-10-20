@@ -173,7 +173,7 @@ class QuotesService {
 
   /// Get a random motivational quote
   static MotivationalQuote getRandomQuote() {
-    final random = Random();
+    final random = Random(DateTime.now().millisecondsSinceEpoch);
     return _quotes[random.nextInt(_quotes.length)];
   }
 
