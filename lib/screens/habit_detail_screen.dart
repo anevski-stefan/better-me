@@ -275,17 +275,26 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                      date.month == DateTime.now().month && 
                      date.day == DateTime.now().day;
       
+      // Check if date is in the past or future
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final dateOnly = DateTime(date.year, date.month, date.day);
+      final isPast = dateOnly.isBefore(today);
+      final isFuture = dateOnly.isAfter(today);
+      
       calendarDays.add(
         Container(
             width: 40,
             height: 40,
             margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
-              color: isCompleted 
-                  ? Colors.green 
-                  : isMissed
-                      ? Colors.red.withOpacity(0.3)
-                      : Colors.grey.withOpacity(0.3),
+              color: isPast || isFuture
+                  ? Colors.grey.withOpacity(0.1) // Disabled color for past/future
+                  : isCompleted 
+                      ? Colors.green 
+                      : isMissed
+                          ? Colors.red.withOpacity(0.3)
+                          : Colors.grey.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
               border: isToday 
                   ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
@@ -295,11 +304,13 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
               child: Text(
                 day.toString(),
                 style: TextStyle(
-                  color: isCompleted 
-                      ? Colors.white 
-                      : isMissed
-                          ? Colors.red.shade700
-                          : Colors.grey.shade700,
+                  color: isPast || isFuture
+                      ? Colors.grey.shade400 // Disabled text color
+                      : isCompleted 
+                          ? Colors.white 
+                          : isMissed
+                              ? Colors.red.shade700
+                              : Colors.grey.shade700,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
