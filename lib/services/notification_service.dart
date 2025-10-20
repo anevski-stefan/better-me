@@ -24,7 +24,7 @@ class NotificationService {
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: false,
-      requestSoundPermission: false,
+      requestSoundPermission: true,
     );
     
     // Combined initialization settings
