@@ -27,6 +27,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   HabitType _habitType = HabitType.recurring;
   String _frequencyType = 'daily'; // 'daily', 'weekly', 'custom'
   int _selectedWeeklyDay = 1; // 0=Sunday, 1=Monday, etc.
+  DateTime? _selectedStartDate;
+  bool _hasStartDate = false;
 
   final List<String> _dayNames = [
     'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
@@ -43,6 +45,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       _habitType = widget.habitToEdit!.type;
       _hasReminder = widget.habitToEdit!.hasReminder;
       _reminderTime = widget.habitToEdit!.reminderTime;
+      _selectedStartDate = widget.habitToEdit!.startDate;
+      _hasStartDate = widget.habitToEdit!.startDate != null;
       
       // Set the selected days
       if (widget.habitToEdit!.reminderDays != null) {
@@ -70,6 +74,21 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     if (picked != null && picked != _reminderTime) {
       setState(() {
         _reminderTime = picked;
+      });
+    }
+  }
+
+  Future<void> _selectStartDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedStartDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null && picked != _selectedStartDate) {
+      setState(() {
+        _selectedStartDate = picked;
+        _hasStartDate = true;
       });
     }
   }
@@ -123,6 +142,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
         isCompleted: widget.habitToEdit?.isCompleted ?? false,
         completedAt: widget.habitToEdit?.completedAt,
         completedDates: widget.habitToEdit?.completedDates,
+        missedDates: widget.habitToEdit?.missedDates,
+        startDate: _hasStartDate ? _selectedStartDate : null,
       );
 
       if (widget.habitToEdit == null) {
@@ -428,6 +449,120 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                       }
                       return null;
                     },
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Start Date Section
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(context).dividerColor.withOpacity(0.1),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Iconsax.calendar_1,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Start Date',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Set custom start date',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _hasStartDate 
+                              ? 'Start: ${_selectedStartDate!.day}/${_selectedStartDate!.month}/${_selectedStartDate!.year}'
+                              : 'Start: Today (default)',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: _hasStartDate 
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                        value: _hasStartDate,
+                        onChanged: (value) {
+                          setState(() {
+                            _hasStartDate = value;
+                            if (!value) {
+                              _selectedStartDate = null;
+                            }
+                          });
+                        },
+                        activeColor: Theme.of(context).colorScheme.primary,
+                      ),
+                      if (_hasStartDate) ...[
+                        const SizedBox(height: 16),
+                        InkWell(
+                          onTap: _selectStartDate,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Iconsax.calendar_1,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  _selectedStartDate != null
+                                      ? '${_selectedStartDate!.day}/${_selectedStartDate!.month}/${_selectedStartDate!.year}'
+                                      : 'Select start date (defaults to today)',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Icon(
+                                  Iconsax.arrow_down_1,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
 

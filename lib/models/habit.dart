@@ -19,6 +19,7 @@ class Habit {
   final List<int> reminderDays; // 0=Sunday, 1=Monday, etc.
   final List<DateTime>? completedDates; // Track individual day completions
   final List<DateTime>? missedDates; // Track individual missed days
+  final DateTime? startDate; // Optional start date for the habit
 
   Habit({
     required this.id,
@@ -34,6 +35,7 @@ class Habit {
     this.reminderDays = const [],
     this.completedDates,
     this.missedDates,
+    this.startDate,
   });
 
   Habit copyWith({
@@ -50,6 +52,7 @@ class Habit {
     List<int>? reminderDays,
     List<DateTime>? completedDates,
     List<DateTime>? missedDates,
+    DateTime? startDate,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -65,6 +68,7 @@ class Habit {
       reminderDays: reminderDays ?? this.reminderDays,
       completedDates: completedDates ?? this.completedDates,
       missedDates: missedDates ?? this.missedDates,
+      startDate: startDate ?? this.startDate,
     );
   }
 
@@ -85,6 +89,7 @@ class Habit {
       'reminderDays': reminderDays,
       'completedDates': completedDates?.map((date) => date.toIso8601String()).toList(),
       'missedDates': missedDates?.map((date) => date.toIso8601String()).toList(),
+      'startDate': startDate?.toIso8601String(),
     };
   }
 
@@ -120,6 +125,7 @@ class Habit {
       missedDates: json['missedDates'] != null 
           ? (json['missedDates'] as List<dynamic>).map((date) => DateTime.parse(date)).toList()
           : null,
+      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
     );
   }
 
