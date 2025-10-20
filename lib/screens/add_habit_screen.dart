@@ -29,6 +29,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   int _selectedWeeklyDay = 1; // 0=Sunday, 1=Monday, etc.
   DateTime? _selectedStartDate;
   bool _hasStartDate = false;
+  bool _useFlexibleFrequency = false; // Toggle for flexible frequency
+  int _targetDaysPerWeek = 3; // Number of days per week for flexible frequency
 
   final List<String> _dayNames = [
     'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
@@ -47,6 +49,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       _reminderTime = widget.habitToEdit!.reminderTime;
       _selectedStartDate = widget.habitToEdit!.startDate;
       _hasStartDate = widget.habitToEdit!.startDate != null;
+      _useFlexibleFrequency = widget.habitToEdit!.useFlexibleFrequency ?? false;
+      _targetDaysPerWeek = widget.habitToEdit!.targetDaysPerWeek ?? 3;
       
       // Set the selected days
       if (widget.habitToEdit!.reminderDays != null) {
@@ -109,7 +113,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
 
     // Validate that recurring habits have appropriate day selection
     if (_habitType == HabitType.recurring) {
-      if (_frequencyType == 'custom' && !_daySelected.any((day) => day)) {
+      if (_frequencyType == 'custom' && !_useFlexibleFrequency && !_daySelected.any((day) => day)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please select at least one day for custom frequency'),
@@ -138,12 +142,16 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
             ? [0, 1, 2, 3, 4, 5, 6] // All days for daily
             : _frequencyType == 'weekly'
                 ? [_selectedWeeklyDay] // Single day for weekly
-                : _daySelected.asMap().entries.where((entry) => entry.value).map((entry) => entry.key).toList(), // Custom days
+                : _useFlexibleFrequency
+                    ? [0, 1, 2, 3, 4, 5, 6] // All days for flexible frequency
+                    : _daySelected.asMap().entries.where((entry) => entry.value).map((entry) => entry.key).toList(), // Custom days
         isCompleted: widget.habitToEdit?.isCompleted ?? false,
         completedAt: widget.habitToEdit?.completedAt,
         completedDates: widget.habitToEdit?.completedDates,
         missedDates: widget.habitToEdit?.missedDates,
         startDate: _hasStartDate ? _selectedStartDate : null,
+        useFlexibleFrequency: _useFlexibleFrequency,
+        targetDaysPerWeek: _useFlexibleFrequency ? _targetDaysPerWeek : null,
       );
 
       if (widget.habitToEdit == null) {
@@ -154,7 +162,9 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       
       // Schedule habit reminder notifications
       if (_hasReminder && _reminderTime != null) {
-        final reminderDays = _daySelected.asMap().entries.where((entry) => entry.value).map((entry) => entry.key).toList();
+        final reminderDays = _useFlexibleFrequency 
+            ? [0, 1, 2, 3, 4, 5, 6] // All days for flexible frequency
+            : _daySelected.asMap().entries.where((entry) => entry.value).map((entry) => entry.key).toList();
         await NotificationService.scheduleHabitReminders(
           habit.id,
           habit.name,
@@ -500,7 +510,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          _hasStartDate 
+                          _hasStartDate && _selectedStartDate != null
                               ? 'Start: ${_selectedStartDate!.day}/${_selectedStartDate!.month}/${_selectedStartDate!.year}'
                               : 'Start: Today (default)',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -542,16 +552,19 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                                   size: 20,
                                 ),
                                 const SizedBox(width: 12),
-                                Text(
-                                  _selectedStartDate != null
-                                      ? '${_selectedStartDate!.day}/${_selectedStartDate!.month}/${_selectedStartDate!.year}'
-                                      : 'Select start date (defaults to today)',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
+                                Expanded(
+                                  child: Text(
+                                    _selectedStartDate != null
+                                        ? '${_selectedStartDate!.day}/${_selectedStartDate!.month}/${_selectedStartDate!.year}'
+                                        : 'Select start date (defaults to today)',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                const Spacer(),
+                                const SizedBox(width: 8),
                                 Icon(
                                   Iconsax.arrow_down_1,
                                   color: Theme.of(context).colorScheme.primary,
@@ -1050,55 +1063,149 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                         ),
                         const SizedBox(height: 16),
                         
-                        Text(
-                          _frequencyType == 'weekly' 
-                              ? 'Select which day of the week you want to do this habit:'
-                              : 'Select which days you want to do this habit:',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).textTheme.bodySmall?.color,
+                        // Flexible Frequency Toggle
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Flexible frequency',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
+                          subtitle: Text(
+                            _useFlexibleFrequency 
+                                ? 'Do this habit ${_targetDaysPerWeek} days per week (any days)'
+                                : 'Select specific days of the week',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: _useFlexibleFrequency 
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).textTheme.bodySmall?.color,
+                            ),
+                          ),
+                          value: _useFlexibleFrequency,
+                          onChanged: (value) {
+                            setState(() {
+                              _useFlexibleFrequency = value;
+                              if (!value) {
+                                // Reset to no days selected when switching back to specific days
+                                _daySelected = [false, false, false, false, false, false, false];
+                              }
+                            });
+                          },
+                          activeColor: Theme.of(context).colorScheme.primary,
                         ),
-                        const SizedBox(height: 16),
                         
-                        Wrap(
-                          spacing: 8,
-                          children: List.generate(7, (index) {
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _daySelected[index] = !_daySelected[index];
-                                });
-                              },
-                              child: Container(
-                                width: 40,
-                                height: 40,
+                        if (_useFlexibleFrequency) ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Text(
+                                'Target days per week: ',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Container(
                                 decoration: BoxDecoration(
-                                  color: _daySelected[index]
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      onPressed: _targetDaysPerWeek > 1 ? () {
+                                        setState(() {
+                                          _targetDaysPerWeek--;
+                                        });
+                                      } : null,
+                                      icon: Icon(
+                                        Iconsax.minus,
+                                        size: 16,
+                                        color: _targetDaysPerWeek > 1 
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      child: Text(
+                                        '$_targetDaysPerWeek',
+                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: _targetDaysPerWeek < 7 ? () {
+                                        setState(() {
+                                          _targetDaysPerWeek++;
+                                        });
+                                      } : null,
+                                      icon: Icon(
+                                        Iconsax.add,
+                                        size: 16,
+                                        color: _targetDaysPerWeek < 7 
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            'Select which days you want to do this habit:',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).textTheme.bodySmall?.color,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          Wrap(
+                            spacing: 8,
+                            children: List.generate(7, (index) {
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _daySelected[index] = !_daySelected[index];
+                                  });
+                                },
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
                                     color: _daySelected[index]
                                         ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context).dividerColor.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    _dayNames[index],
-                                    style: TextStyle(
+                                        : Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
                                       color: _daySelected[index]
-                                          ? Colors.white
-                                          : Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).dividerColor.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _dayNames[index],
+                                      style: TextStyle(
+                                        color: _daySelected[index]
+                                            ? Colors.white
+                                            : Theme.of(context).colorScheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            );
-                          }),
-                        ),
+                              );
+                            }),
+                          ),
+                        ],
                       ],
                     ),
                   ),

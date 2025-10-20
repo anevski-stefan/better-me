@@ -455,7 +455,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
               ),
               
               const SizedBox(height: 24),
-              _buildCalendarView(_currentHabit),
+              // Only show calendar for recurring habits
+              if (_currentHabit.type == HabitType.recurring)
+                _buildCalendarView(_currentHabit),
               
             ],
           ),

@@ -185,9 +185,77 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
     return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
   }
 
+  List<DateTime> _getWeekDaysForHabit(Habit habit) {
+    final now = DateTime.now();
+    final systemStartDate = _currentSystem.startDate ?? _currentSystem.createdAt;
+    final habitStartDate = habit.startDate;
+    
+    // Determine which start date to use
+    DateTime effectiveStartDate;
+    if (habitStartDate != null && habitStartDate.isAfter(now)) {
+      // Use habit start date if it's in the future
+      effectiveStartDate = habitStartDate;
+    } else if (systemStartDate.isAfter(now)) {
+      // Use system start date if it's in the future
+      effectiveStartDate = systemStartDate;
+    } else {
+      // Use current week if both are in the past
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+      return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
+    }
+    
+    // If we have a future start date, show the week starting from that date
+    return List.generate(7, (index) => effectiveStartDate.add(Duration(days: index)));
+  }
+
   String _getDayAbbreviation(DateTime date) {
     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     return days[date.weekday - 1];
+  }
+
+  void _showFutureDayMessage(DateTime date) {
+    final now = DateTime.now();
+    final daysUntil = date.difference(now).inDays;
+    
+    String message;
+    if (daysUntil == 1) {
+      message = "This day is tomorrow! You can't track habits for future days.";
+    } else if (daysUntil > 1) {
+      message = "This day is in ${daysUntil} days! You can't track habits for future days.";
+    } else {
+      message = "This day is in the future! You can't track habits for future days.";
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              Iconsax.info_circle,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   bool _isHabitCompletedOnDate(Habit habit, DateTime date) {
@@ -217,11 +285,21 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
   }
 
   Widget _buildWeeklyTracker(Habit habit) {
-    // For one-time habits, show only one day (today or the system start date)
+    // For one-time habits, show only one day (today, system start date, or habit start date)
     if (habit.type == HabitType.oneTime) {
       final now = DateTime.now();
       final systemStartDate = _currentSystem.startDate ?? _currentSystem.createdAt;
-      final targetDate = systemStartDate.isAfter(now) ? systemStartDate : now;
+      final habitStartDate = habit.startDate;
+      
+      // Use habit start date if available and in the future, otherwise use system start date
+      DateTime targetDate;
+      if (habitStartDate != null && habitStartDate.isAfter(now)) {
+        targetDate = habitStartDate;
+      } else if (systemStartDate.isAfter(now)) {
+        targetDate = systemStartDate;
+      } else {
+        targetDate = now;
+      }
       
       return Container(
         margin: const EdgeInsets.only(top: 8),
@@ -234,14 +312,16 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
       );
     }
     
-    // For recurring habits, show the full week
-    final weekDays = _getWeekDays();
+    // For recurring habits, show the full week based on habit start date or system start date
+    final weekDays = _getWeekDaysForHabit(habit);
     
     return Container(
       margin: const EdgeInsets.only(top: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: weekDays.map((date) => _buildDayTracker(habit, date)).toList(),
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: weekDays.map((date) => _buildDayTracker(habit, date)).toList()
+          .expand((widget) => [widget, const SizedBox(width: 8)]).toList()
+          ..removeLast(), // Remove the last SizedBox
       ),
     );
   }
@@ -253,25 +333,31 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
     final isToday = date.year == now.year &&
         date.month == now.month &&
         date.day == now.day;
+    final isFuture = date.isAfter(now);
     
-    // Allow clicking on any day for manual state toggling
-    final canClick = true;
+    // Disable future days - only allow clicking on today and past days
+    final canClick = !isFuture;
     
     return GestureDetector(
-      key: ValueKey('day_${date.day}_${date.month}'),
+      key: ValueKey('day_${habit.id}_${date.millisecondsSinceEpoch}'),
       onTap: canClick ? () {
         print('Day ${_getDayAbbreviation(date)} clicked for habit ${habit.name}');
         _toggleHabitForDate(habit, date);
-      } : null,
+      } : () {
+        // Show message for disabled future days
+        _showFutureDayMessage(date);
+      },
       child: Container(
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: isCompleted 
-              ? Colors.green 
-              : isMissed
-                  ? Colors.red.withOpacity(0.3) // Missed days - red
-                  : Colors.grey.withOpacity(0.3), // Default gray
+          color: isFuture
+              ? Colors.grey.withOpacity(0.1) // Future days - very light gray
+              : isCompleted 
+                  ? Colors.green 
+                  : isMissed
+                      ? Colors.red.withOpacity(0.3) // Missed days - red
+                      : Colors.grey.withOpacity(0.3), // Default gray
           borderRadius: BorderRadius.circular(6),
           border: isToday 
               ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
@@ -281,11 +367,13 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
           child: Text(
             _getDayAbbreviation(date),
             style: TextStyle(
-              color: isCompleted 
-                  ? Colors.white 
-                  : isMissed
-                      ? Colors.red.shade700 // Missed days - red text
-                      : Colors.grey.shade700, // Default gray text
+              color: isFuture
+                  ? Colors.grey.withOpacity(0.4) // Future days - very light gray text
+                  : isCompleted 
+                      ? Colors.white 
+                      : isMissed
+                          ? Colors.red.shade700 // Missed days - red text
+                          : Colors.grey.shade700, // Default gray text
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
