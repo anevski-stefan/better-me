@@ -18,6 +18,7 @@ class Habit {
   final TimeOfDay? reminderTime;
   final List<int> reminderDays; // 0=Sunday, 1=Monday, etc.
   final List<DateTime>? completedDates; // Track individual day completions
+  final List<DateTime>? missedDates; // Track individual missed days
 
   Habit({
     required this.id,
@@ -32,6 +33,7 @@ class Habit {
     this.reminderTime,
     this.reminderDays = const [],
     this.completedDates,
+    this.missedDates,
   });
 
   Habit copyWith({
@@ -47,6 +49,7 @@ class Habit {
     TimeOfDay? reminderTime,
     List<int>? reminderDays,
     List<DateTime>? completedDates,
+    List<DateTime>? missedDates,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -61,6 +64,7 @@ class Habit {
       reminderTime: reminderTime ?? this.reminderTime,
       reminderDays: reminderDays ?? this.reminderDays,
       completedDates: completedDates ?? this.completedDates,
+      missedDates: missedDates ?? this.missedDates,
     );
   }
 
@@ -80,6 +84,7 @@ class Habit {
           : null,
       'reminderDays': reminderDays,
       'completedDates': completedDates?.map((date) => date.toIso8601String()).toList(),
+      'missedDates': missedDates?.map((date) => date.toIso8601String()).toList(),
     };
   }
 
@@ -111,6 +116,9 @@ class Habit {
       reminderDays: (json['reminderDays'] as List<dynamic>?)?.cast<int>() ?? [],
       completedDates: json['completedDates'] != null 
           ? (json['completedDates'] as List<dynamic>).map((date) => DateTime.parse(date)).toList()
+          : null,
+      missedDates: json['missedDates'] != null 
+          ? (json['missedDates'] as List<dynamic>).map((date) => DateTime.parse(date)).toList()
           : null,
     );
   }

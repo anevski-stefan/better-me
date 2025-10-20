@@ -198,21 +198,6 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                       color: Theme.of(context).textTheme.bodySmall?.color,
                                     ),
                                   ),
-                                  if (goal.targetDate != null) ...[
-                                    const SizedBox(width: 16),
-                                    Icon(
-                                      Iconsax.flag,
-                                      size: 16,
-                                      color: Theme.of(context).colorScheme.secondary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Target: ${_formatDate(goal.targetDate!)}',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Theme.of(context).textTheme.bodySmall?.color,
-                                      ),
-                                    ),
-                                  ],
                                 ],
                               ),
                             ],

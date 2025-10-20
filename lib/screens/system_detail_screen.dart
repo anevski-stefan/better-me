@@ -78,50 +78,58 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
   }
 
   Future<void> _toggleHabitForDate(Habit habit, DateTime date) async {
-    // Only allow toggling today's date
-    final today = DateTime.now();
-    final isToday = date.year == today.year &&
-        date.month == today.month &&
-        date.day == today.day;
-    
-    if (!isToday) {
-      // Show a message that only today can be toggled
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You can only mark habits as completed for today'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-    
     print('Toggling habit ${habit.name} for date ${date.day}/${date.month}');
     
     // Create a date with only year, month, day (no time)
     final dateOnly = DateTime(date.year, date.month, date.day);
     
     List<DateTime> newCompletedDates = List.from(habit.completedDates ?? []);
+    List<DateTime> newMissedDates = List.from(habit.missedDates ?? []);
     
-    // Check if this date is already completed
-    final isAlreadyCompleted = newCompletedDates.any((completedDate) =>
+    // Check current state
+    final isCompleted = newCompletedDates.any((completedDate) =>
         completedDate.year == date.year &&
         completedDate.month == date.month &&
         completedDate.day == date.day);
     
-    if (isAlreadyCompleted) {
-      // Remove this date from completed dates
+    final isMissed = newMissedDates.any((missedDate) =>
+        missedDate.year == date.year &&
+        missedDate.month == date.month &&
+        missedDate.day == date.day);
+    
+    // Toggle through states: default → completed → missed → default
+    if (isCompleted) {
+      // Remove from completed, set to missed
       newCompletedDates.removeWhere((completedDate) =>
           completedDate.year == date.year &&
           completedDate.month == date.month &&
           completedDate.day == date.day);
+      if (!newMissedDates.any((missedDate) =>
+          missedDate.year == date.year &&
+          missedDate.month == date.month &&
+          missedDate.day == date.day)) {
+        newMissedDates.add(dateOnly);
+      }
+    } else if (isMissed) {
+      // Remove from missed, set to default
+      newMissedDates.removeWhere((missedDate) =>
+          missedDate.year == date.year &&
+          missedDate.month == date.month &&
+          missedDate.day == date.day);
     } else {
-      // Add this date to completed dates
-      newCompletedDates.add(dateOnly);
+      // Set to completed
+      if (!newCompletedDates.any((completedDate) =>
+          completedDate.year == date.year &&
+          completedDate.month == date.month &&
+          completedDate.day == date.day)) {
+        newCompletedDates.add(dateOnly);
+      }
     }
     
-    // Update the habit with new completed dates
+    // Update the habit with new states
     final updatedHabit = habit.copyWith(
       completedDates: newCompletedDates,
+      missedDates: newMissedDates,
       isCompleted: newCompletedDates.isNotEmpty,
       completedAt: newCompletedDates.isNotEmpty ? newCompletedDates.last : null,
     );
@@ -129,7 +137,7 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
     await _dataService.updateHabitInSystem(_currentSystem.id, updatedHabit);
     
     // Award XP for completing habit (only if it's a new completion)
-    if (!isAlreadyCompleted && newCompletedDates.isNotEmpty) {
+    if (!isCompleted && newCompletedDates.isNotEmpty) {
       await _gamificationService.completeHabit();
     }
     
@@ -163,18 +171,17 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
     }
   }
 
-  List<DateTime> _getWeekDays(DateTime habitCreatedAt) {
+  List<DateTime> _getWeekDays() {
     final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final systemStartDate = _currentSystem.startDate ?? _currentSystem.createdAt;
     
-    // If habit was created this week, show from creation date
-    if (habitCreatedAt.isAfter(startOfWeek.subtract(const Duration(days: 1)))) {
-      final daysFromCreation = now.difference(habitCreatedAt).inDays;
-      final startDate = daysFromCreation >= 6 ? now.subtract(const Duration(days: 6)) : habitCreatedAt;
-      return List.generate(7, (index) => startDate.add(Duration(days: index)));
+    // If system start date is in the future, show the week starting from the start date
+    if (systemStartDate.isAfter(now)) {
+      return List.generate(7, (index) => systemStartDate.add(Duration(days: index)));
     }
     
-    // Otherwise show current week
+    // If system start date is in the past, show current week (Monday to Sunday)
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
   }
 
@@ -196,57 +203,94 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
         completedDate.day == date.day);
   }
 
+  bool _isHabitMissedOnDate(Habit habit, DateTime date) {
+    // Check if this specific date is in the missedDates list
+    // Handle null safety for existing habits
+    if (habit.missedDates == null || habit.missedDates!.isEmpty) {
+      return false;
+    }
+    
+    return habit.missedDates!.any((missedDate) =>
+        missedDate.year == date.year &&
+        missedDate.month == date.month &&
+        missedDate.day == date.day);
+  }
+
   Widget _buildWeeklyTracker(Habit habit) {
-    final weekDays = _getWeekDays(habit.createdAt);
+    // For one-time habits, show only one day (today or the system start date)
+    if (habit.type == HabitType.oneTime) {
+      final now = DateTime.now();
+      final systemStartDate = _currentSystem.startDate ?? _currentSystem.createdAt;
+      final targetDate = systemStartDate.isAfter(now) ? systemStartDate : now;
+      
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            _buildDayTracker(habit, targetDate),
+          ],
+        ),
+      );
+    }
+    
+    // For recurring habits, show the full week
+    final weekDays = _getWeekDays();
     
     return Container(
       margin: const EdgeInsets.only(top: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: weekDays.map((date) {
-          final isCompleted = _isHabitCompletedOnDate(habit, date);
-          final isToday = date.year == DateTime.now().year &&
-              date.month == DateTime.now().month &&
-              date.day == DateTime.now().day;
-          final isFuture = date.isAfter(DateTime.now());
-          
-          return GestureDetector(
-            key: ValueKey('day_${date.day}_${date.month}'),
-            onTap: isToday ? () {
-              print('Day ${_getDayAbbreviation(date)} clicked for habit ${habit.name}');
-              _toggleHabitForDate(habit, date);
-            } : null,
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isCompleted 
-                    ? Colors.green 
-                    : (isFuture || isToday)
-                        ? Colors.grey.withOpacity(0.3) // Today and future days show same grey
-                        : Colors.red.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(6),
-                border: isToday 
-                    ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                    : null,
-              ),
-              child: Center(
-                child: Text(
-                  _getDayAbbreviation(date),
-                  style: TextStyle(
-                    color: isCompleted 
-                        ? Colors.white 
-                        : (isFuture || isToday)
-                            ? Colors.grey // Today and future days show same grey text
-                            : Colors.red,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
+        children: weekDays.map((date) => _buildDayTracker(habit, date)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildDayTracker(Habit habit, DateTime date) {
+    final isCompleted = _isHabitCompletedOnDate(habit, date);
+    final isMissed = _isHabitMissedOnDate(habit, date);
+    final now = DateTime.now();
+    final isToday = date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+    
+    // Allow clicking on any day for manual state toggling
+    final canClick = true;
+    
+    return GestureDetector(
+      key: ValueKey('day_${date.day}_${date.month}'),
+      onTap: canClick ? () {
+        print('Day ${_getDayAbbreviation(date)} clicked for habit ${habit.name}');
+        _toggleHabitForDate(habit, date);
+      } : null,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: isCompleted 
+              ? Colors.green 
+              : isMissed
+                  ? Colors.red.withOpacity(0.3) // Missed days - red
+                  : Colors.grey.withOpacity(0.3), // Default gray
+          borderRadius: BorderRadius.circular(6),
+          border: isToday 
+              ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+              : null,
+        ),
+        child: Center(
+          child: Text(
+            _getDayAbbreviation(date),
+            style: TextStyle(
+              color: isCompleted 
+                  ? Colors.white 
+                  : isMissed
+                      ? Colors.red.shade700 // Missed days - red text
+                      : Colors.grey.shade700, // Default gray text
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
             ),
-          );
-        }).toList(),
+          ),
+        ),
       ),
     );
   }
@@ -312,6 +356,54 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                 Text(
                   _currentSystem.description,
                   style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Created ${_formatDate(_currentSystem.createdAt)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    if (_currentSystem.startDate != null && 
+                        _currentSystem.startDate!.difference(_currentSystem.createdAt).inDays != 0) ...[
+                      const SizedBox(width: 16),
+                      Icon(
+                        Icons.play_arrow,
+                        size: 16,
+                        color: Colors.blue,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Start: ${_formatDate(_currentSystem.startDate!)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                    if (_currentSystem.targetDate != null) ...[
+                      const SizedBox(width: 16),
+                      Icon(
+                        Icons.flag,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Target: ${_formatDate(_currentSystem.targetDate!)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -385,17 +477,61 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            habit.name,
-                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              decoration: habit.isCompleted 
-                                                  ? TextDecoration.lineThrough 
-                                                  : null,
-                                              color: habit.isCompleted 
-                                                  ? Colors.grey 
-                                                  : null,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      habit.name,
+                                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                        decoration: habit.isCompleted 
+                                                            ? TextDecoration.lineThrough 
+                                                            : null,
+                                                        color: habit.isCompleted 
+                                                            ? Colors.grey 
+                                                            : null,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (habit.type == HabitType.oneTime) ...[
+                                                const SizedBox(height: 4),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.orange.withOpacity(0.15),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    border: Border.all(
+                                                      color: Colors.orange.withOpacity(0.3),
+                                                      width: 0.5,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Iconsax.flag_2,
+                                                        size: 12,
+                                                        color: Colors.orange.shade700,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        'One-time',
+                                                        style: TextStyle(
+                                                          color: Colors.orange.shade700,
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
@@ -458,4 +594,22 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
       ),
     );
   }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(now).inDays;
+    
+    if (difference == 0) {
+      return 'Today';
+    } else if (difference == 1) {
+      return 'Tomorrow';
+    } else if (difference == -1) {
+      return 'Yesterday';
+    } else if (difference > 0) {
+      return 'In $difference days';
+    } else {
+      return '${-difference} days ago';
+    }
+  }
 }
+

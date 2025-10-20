@@ -19,8 +19,6 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   final GamificationService _gamificationService = GamificationService();
   bool _isLoading = false;
   
-  DateTime? _selectedTargetDate;
-  bool _hasTargetDate = false;
 
   @override
   void dispose() {
@@ -29,20 +27,6 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     super.dispose();
   }
 
-  Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedTargetDate ?? DateTime.now().add(const Duration(days: 30)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)), // 5 years from now
-    );
-    
-    if (picked != null && picked != _selectedTargetDate) {
-      setState(() {
-        _selectedTargetDate = picked;
-      });
-    }
-  }
 
   Future<void> _saveGoal() async {
     if (!_formKey.currentState!.validate()) return;
@@ -57,7 +41,6 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         createdAt: DateTime.now(),
-        targetDate: _hasTargetDate ? _selectedTargetDate : null,
       );
 
       await _dataService.addGoal(goal);
@@ -349,115 +332,6 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
-
-                // Target Date Section
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor.withOpacity(0.1),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Iconsax.calendar_1,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Target Date',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Target Date Toggle
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Set a target date',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        subtitle: Text(_hasTargetDate && _selectedTargetDate != null
-                            ? 'Target: ${_formatDate(_selectedTargetDate!)}'
-                            : 'No target date set'),
-                        value: _hasTargetDate,
-                        onChanged: (value) {
-                          setState(() {
-                            _hasTargetDate = value;
-                            if (!value) {
-                              _selectedTargetDate = null;
-                            }
-                          });
-                        },
-                        activeColor: Theme.of(context).colorScheme.primary,
-                      ),
-                      
-                      if (_hasTargetDate) ...[
-                        const SizedBox(height: 16),
-                        
-                        // Date Selection
-                        InkWell(
-                          onTap: _selectDate,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Theme.of(context).dividerColor.withOpacity(0.3),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Iconsax.calendar_1,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  _selectedTargetDate != null
-                                      ? _formatDate(_selectedTargetDate!)
-                                      : 'Select target date',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: _selectedTargetDate != null
-                                        ? Theme.of(context).textTheme.bodyLarge?.color
-                                        : Theme.of(context).textTheme.bodySmall?.color,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Icon(
-                                  Iconsax.arrow_down_1,
-                                  color: Theme.of(context).textTheme.bodySmall?.color,
-                                  size: 16,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
                 const SizedBox(height: 32),
 
                 // Create Button
@@ -507,7 +381,4 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
 }

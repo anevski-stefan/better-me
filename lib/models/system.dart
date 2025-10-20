@@ -7,6 +7,8 @@ class System {
   final String category;
   final String? goalId;
   final DateTime createdAt;
+  final DateTime? startDate;
+  final DateTime? targetDate;
   final List<Habit> habits;
 
   System({
@@ -16,6 +18,8 @@ class System {
     required this.category,
     this.goalId,
     required this.createdAt,
+    this.startDate,
+    this.targetDate,
     this.habits = const [],
   });
 
@@ -26,6 +30,8 @@ class System {
     String? category,
     String? goalId,
     DateTime? createdAt,
+    DateTime? startDate,
+    DateTime? targetDate,
     List<Habit>? habits,
   }) {
     return System(
@@ -35,6 +41,8 @@ class System {
       category: category ?? this.category,
       goalId: goalId ?? this.goalId,
       createdAt: createdAt ?? this.createdAt,
+      startDate: startDate,
+      targetDate: targetDate,
       habits: habits ?? this.habits,
     );
   }
@@ -47,6 +55,8 @@ class System {
       'category': category,
       'goalId': goalId,
       'createdAt': createdAt.toIso8601String(),
+      'startDate': startDate?.toIso8601String(),
+      'targetDate': targetDate?.toIso8601String(),
       'habits': habits.map((habit) => habit.toJson()).toList(),
     };
   }
@@ -59,6 +69,8 @@ class System {
       category: json['category'] ?? 'General',
       goalId: json['goalId'],
       createdAt: DateTime.parse(json['createdAt']),
+      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
+      targetDate: json['targetDate'] != null ? DateTime.parse(json['targetDate']) : null,
       habits: (json['habits'] as List<dynamic>?)
           ?.map((habitJson) => Habit.fromJson(habitJson))
           .toList() ?? [],

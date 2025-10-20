@@ -174,6 +174,54 @@ class _SystemsScreenState extends State<SystemsScreen> {
                                   ),
                                 ),
                               ],
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Iconsax.calendar_1,
+                                    size: 16,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Created ${_formatDate(system.createdAt)}',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).textTheme.bodySmall?.color,
+                                    ),
+                                  ),
+                                  if (system.startDate != null && 
+                                      system.startDate!.difference(system.createdAt).inDays != 0) ...[
+                                    const SizedBox(width: 16),
+                                    Icon(
+                                      Iconsax.play,
+                                      size: 16,
+                                      color: Colors.blue,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Start: ${_formatDate(system.startDate!)}',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).textTheme.bodySmall?.color,
+                                      ),
+                                    ),
+                                  ],
+                                  if (system.targetDate != null) ...[
+                                    const SizedBox(width: 16),
+                                    Icon(
+                                      Iconsax.flag,
+                                      size: 16,
+                                      color: Theme.of(context).colorScheme.secondary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Target: ${_formatDate(system.targetDate!)}',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).textTheme.bodySmall?.color,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -201,5 +249,22 @@ class _SystemsScreenState extends State<SystemsScreen> {
         foregroundColor: Colors.white,
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(now).inDays;
+    
+    if (difference == 0) {
+      return 'Today';
+    } else if (difference == 1) {
+      return 'Tomorrow';
+    } else if (difference == -1) {
+      return 'Yesterday';
+    } else if (difference > 0) {
+      return 'In $difference days';
+    } else {
+      return '${-difference} days ago';
+    }
   }
 }

@@ -147,6 +147,19 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         completedDate.day == date.day);
   }
 
+  bool _isHabitMissedOnDate(Habit habit, DateTime date) {
+    // Check if this specific date is in the missedDates list
+    // Handle null safety for existing habits
+    if (habit.missedDates == null || habit.missedDates!.isEmpty) {
+      return false;
+    }
+    
+    return habit.missedDates!.any((missedDate) =>
+        missedDate.year == date.year &&
+        missedDate.month == date.month &&
+        missedDate.day == date.day);
+  }
+
   bool _isHabitAvailableOnDate(Habit habit, DateTime date) {
     // Check if the habit should be available on this date based on frequency
     return habit.shouldBeAvailableOnDate(date);
@@ -257,30 +270,26 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     for (int day = 1; day <= endOfMonth.day; day++) {
       final date = DateTime(month.year, month.month, day);
       final isCompleted = _isHabitCompletedOnDate(habit, date);
-      final isAvailable = _isHabitAvailableOnDate(habit, date);
+      final isMissed = _isHabitMissedOnDate(habit, date);
       final isToday = date.year == DateTime.now().year && 
                      date.month == DateTime.now().month && 
                      date.day == DateTime.now().day;
       
       calendarDays.add(
-        GestureDetector(
-          onTap: isAvailable ? () => _toggleHabitForDate(habit, date) : null,
-          child: Container(
+        Container(
             width: 40,
             height: 40,
             margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: isCompleted 
                   ? Colors.green 
-                  : isAvailable
-                      ? Colors.blue.withOpacity(0.3)
-                      : Colors.grey.withOpacity(0.1),
+                  : isMissed
+                      ? Colors.red.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
               border: isToday 
                   ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                  : isAvailable
-                      ? Border.all(color: Colors.blue.withOpacity(0.5), width: 1)
-                      : null,
+                  : null,
             ),
             child: Center(
               child: Text(
@@ -288,15 +297,14 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                 style: TextStyle(
                   color: isCompleted 
                       ? Colors.white 
-                      : isAvailable
-                          ? Colors.blue
-                          : Colors.grey.withOpacity(0.5),
+                      : isMissed
+                          ? Colors.red.shade700
+                          : Colors.grey.shade700,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
               ),
             ),
-          ),
         ),
       );
     }
