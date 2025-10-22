@@ -68,13 +68,162 @@ class _HomeScreenState extends State<HomeScreen> {
     for (final system in _systems) {
       allHabits.addAll(system.habits);
     }
-    return allHabits;
+    
+    // Filter habits based on the selected date
+    return allHabits.where((habit) {
+      // Check if the selected date is before the system's start date
+      final system = _systems.firstWhere((s) => s.habits.contains(habit));
+      if (system.startDate != null && _selectedDate.isBefore(system.startDate!)) {
+        return false;
+      }
+      
+      // For one-time habits, only show on their creation date, start date, or if completed on this date
+      if (habit.type == HabitType.oneTime) {
+        // Show if it was completed on this date
+        if (habit.wasCompletedOnDate(_selectedDate)) {
+          return true;
+        }
+        
+        // Show if this is the habit's creation date or start date
+        final habitDate = habit.startDate ?? habit.createdAt;
+        final isHabitDate = _selectedDate.year == habitDate.year &&
+            _selectedDate.month == habitDate.month &&
+            _selectedDate.day == habitDate.day;
+        
+        return isHabitDate;
+      }
+      
+      // For recurring habits, use the existing logic
+      return habit.shouldBeAvailableOnDate(_selectedDate);
+    }).toList();
   }
+
+  bool _isHabitCompletedForDate(Habit habit, DateTime date) {
+    // For one-time habits, check if they were completed at all (not just on this date)
+    if (habit.type == HabitType.oneTime) {
+      return habit.isCompleted;
+    }
+    
+    // For recurring habits, use the global isCompleted state
+    return habit.isCompleted;
+  }
+
+  Widget _buildHabitCard(Habit habit, System system) {
+    final isCompletedForDate = _isHabitCompletedForDate(habit, _selectedDate);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SystemDetailScreen(system: system),
+              ),
+            );
+            // Always reload systems when returning from detail screen
+            _loadSystems();
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.1),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: isCompletedForDate
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: isCompletedForDate
+                        ? null
+                        : Border.all(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            width: 2,
+                          ),
+                  ),
+                  child: isCompletedForDate
+                      ? const Icon(
+                          Iconsax.tick_circle,
+                          color: Colors.white,
+                          size: 16,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        habit.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          decoration: isCompletedForDate
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: isCompletedForDate
+                              ? Theme.of(context).textTheme.bodySmall?.color
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        system.name,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isCompletedForDate)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Done',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
     final habitsForSelectedDate = _getHabitsForSelectedDate();
-    final completedHabits = habitsForSelectedDate.where((h) => h.isCompleted).length;
+    final completedHabits = habitsForSelectedDate.where((h) => _isHabitCompletedForDate(h, _selectedDate)).length;
     final totalHabits = habitsForSelectedDate.length;
     final progressPercentage = totalHabits > 0 ? completedHabits / totalHabits : 0.0;
     final isToday = _selectedDate.year == DateTime.now().year &&
@@ -283,120 +432,44 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     )
-                  : ListView.builder(
+                  : SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: habitsForSelectedDate.length,
-                      itemBuilder: (context, index) {
-                        final habit = habitsForSelectedDate[index];
-                        final system = _systems.firstWhere((s) => s.habits.contains(habit));
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                                  onTap: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => SystemDetailScreen(system: system),
-                                      ),
-                                    );
-                                    // Always reload systems when returning from detail screen
-                                    _loadSystems();
-                                  },
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Theme.of(context).dividerColor.withOpacity(0.1),
+                      child: Column(
+                        children: [
+                          // Pending habits first
+                          ...habitsForSelectedDate.where((h) => !_isHabitCompletedForDate(h, _selectedDate)).map((habit) {
+                            final system = _systems.firstWhere((s) => s.habits.contains(habit));
+                            return _buildHabitCard(habit, system);
+                          }),
+                          
+                          // Completed habits section
+                          if (habitsForSelectedDate.any((h) => _isHabitCompletedForDate(h, _selectedDate))) ...[
+                            const SizedBox(height: 20),
+                            Row(
+                              children: [
+                                Icon(
+                                  Iconsax.tick_circle,
+                                  size: 20,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Done',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 5),
-                                    ),
-                                  ],
                                 ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 24,
-                                      height: 24,
-                                      decoration: BoxDecoration(
-                                        color: habit.isCompleted
-                                            ? Theme.of(context).colorScheme.primary
-                                            : Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: habit.isCompleted
-                                            ? null
-                                            : Border.all(
-                                                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                                                width: 2,
-                                              ),
-                                      ),
-                                      child: habit.isCompleted
-                                          ? const Icon(
-                                              Iconsax.tick_circle,
-                                              color: Colors.white,
-                                              size: 16,
-                                            )
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            habit.name,
-                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              decoration: habit.isCompleted
-                                                  ? TextDecoration.lineThrough
-                                                  : null,
-                                              color: habit.isCompleted
-                                                  ? Theme.of(context).textTheme.bodySmall?.color
-                                                  : null,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            system.name,
-                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: Theme.of(context).colorScheme.primary,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (habit.isCompleted)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          'Done',
-                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: Theme.of(context).colorScheme.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
+                              ],
                             ),
-                          ),
-                        );
-                      },
+                            const SizedBox(height: 12),
+                            ...habitsForSelectedDate.where((h) => _isHabitCompletedForDate(h, _selectedDate)).map((habit) {
+                              final system = _systems.firstWhere((s) => s.habits.contains(habit));
+                              return _buildHabitCard(habit, system);
+                            }),
+                          ],
+                        ],
+                      ),
                     ),
             ),
           ],

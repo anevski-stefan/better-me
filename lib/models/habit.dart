@@ -143,6 +143,11 @@ class Habit {
 
   /// Check if this habit should be available for completion on a specific date
   bool shouldBeAvailableOnDate(DateTime date) {
+    // Check if the date is before the habit's start date
+    if (startDate != null && date.isBefore(startDate!)) {
+      return false;
+    }
+    
     // One-time habits are always available until completed
     if (type == HabitType.oneTime) {
       return !isCompleted;
@@ -156,6 +161,23 @@ class Habit {
     // For recurring habits with specific days, check if the day of week is in reminderDays
     final dayOfWeek = date.weekday % 7; // Convert to 0=Sunday, 1=Monday, etc.
     return reminderDays.contains(dayOfWeek);
+  }
+
+  /// Check if this habit was completed on a specific date
+  bool wasCompletedOnDate(DateTime date) {
+    // If the date is before the habit's start date, it can't be completed
+    if (startDate != null && date.isBefore(startDate!)) {
+      return false;
+    }
+    
+    if (completedDates == null || completedDates!.isEmpty) {
+      return false;
+    }
+    
+    return completedDates!.any((completedDate) =>
+        completedDate.year == date.year &&
+        completedDate.month == date.month &&
+        completedDate.day == date.day);
   }
 
   /// Check if the weekly target has been met for flexible frequency habits

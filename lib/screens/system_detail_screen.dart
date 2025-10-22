@@ -258,6 +258,50 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
     );
   }
 
+  void _showBeforeStartDateMessage(DateTime date, DateTime startDate) {
+    final daysBefore = startDate.difference(date).inDays;
+    
+    String message;
+    if (daysBefore == 1) {
+      message = "This habit starts tomorrow! You can't track it before the start date.";
+    } else if (daysBefore > 1) {
+      message = "This habit starts in ${daysBefore} days! You can't track it before the start date.";
+    } else {
+      message = "This habit hasn't started yet! You can't track it before the start date.";
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              Iconsax.info_circle,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   bool _isHabitCompletedOnDate(Habit habit, DateTime date) {
     // Check if this specific date is in the completedDates list
     // Handle null safety for existing habits
@@ -285,20 +329,23 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
   }
 
   Widget _buildWeeklyTracker(Habit habit) {
-    // For one-time habits, show only one day (today, system start date, or habit start date)
+    // For one-time habits, show only one day (completion date, system start date, or habit start date)
     if (habit.type == HabitType.oneTime) {
       final now = DateTime.now();
       final systemStartDate = _currentSystem.startDate ?? _currentSystem.createdAt;
       final habitStartDate = habit.startDate;
       
-      // Use habit start date if available and in the future, otherwise use system start date
+      // Determine which date to show
       DateTime targetDate;
-      if (habitStartDate != null && habitStartDate.isAfter(now)) {
+      if (habit.completedDates != null && habit.completedDates!.isNotEmpty) {
+        // If habit is completed, show the completion date
+        targetDate = habit.completedDates!.first;
+      } else if (habitStartDate != null) {
+        // If habit has a start date, show that
         targetDate = habitStartDate;
-      } else if (systemStartDate.isAfter(now)) {
-        targetDate = systemStartDate;
       } else {
-        targetDate = now;
+        // Otherwise show the habit creation date
+        targetDate = habit.createdAt;
       }
       
       return Container(
@@ -335,8 +382,11 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
         date.day == now.day;
     final isFuture = date.isAfter(now);
     
-    // Disable future days - only allow clicking on today and past days
-    final canClick = !isFuture;
+    // Check if the date is before the habit's start date
+    final isBeforeStartDate = habit.startDate != null && date.isBefore(habit.startDate!);
+    
+    // Disable future days and days before start date
+    final canClick = !isFuture && !isBeforeStartDate;
     
     return GestureDetector(
       key: ValueKey('day_${habit.id}_${date.millisecondsSinceEpoch}'),
@@ -344,15 +394,19 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
         print('Day ${_getDayAbbreviation(date)} clicked for habit ${habit.name}');
         _toggleHabitForDate(habit, date);
       } : () {
-        // Show message for disabled future days
-        _showFutureDayMessage(date);
+        // Show message for disabled days
+        if (isBeforeStartDate) {
+          _showBeforeStartDateMessage(date, habit.startDate!);
+        } else {
+          _showFutureDayMessage(date);
+        }
       },
       child: Container(
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: isFuture
-              ? Colors.grey.withOpacity(0.1) // Future days - very light gray
+          color: isFuture || isBeforeStartDate
+              ? Colors.grey.withOpacity(0.1) // Future days and days before start - very light gray
               : isCompleted 
                   ? Colors.green 
                   : isMissed
@@ -367,8 +421,8 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
           child: Text(
             _getDayAbbreviation(date),
             style: TextStyle(
-              color: isFuture
-                  ? Colors.grey.withOpacity(0.4) // Future days - very light gray text
+              color: isFuture || isBeforeStartDate
+                  ? Colors.grey.withOpacity(0.4) // Future days and days before start - very light gray text
                   : isCompleted 
                       ? Colors.white 
                       : isMissed
